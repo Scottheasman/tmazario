@@ -119,30 +119,30 @@ function ExpandedRow({lot, allRates, downPct, colCount, propTaxRate}) {
       <td colSpan={colCount} style={{padding:0,borderBottom:"2px solid #2a4a60"}}>
         <div className="slide-down" style={{background:"linear-gradient(135deg,#0f2030 0%,#0d1a28 100%)",padding:"18px 22px",borderLeft:"3px solid #2a7de1"}}>
 
-          {/* ── ROW 1: title + two info cards side by side ── */}
-          <div style={{display:"flex",flexWrap:"wrap",gap:12,alignItems:"flex-start",marginBottom:16}}>
-
-            {/* Title block */}
-            <div style={{minWidth:220,flex:"1 1 220px"}}>
-              <div style={{fontSize:17,fontWeight:800,color:"#f0ebe3",letterSpacing:"-0.3px",marginBottom:4}}>
-                Lot {lot.lot} — {lot.model} <span style={{color:"#4a7a9b",fontWeight:400,fontSize:13}}>{lot.elevType}</span>
-              </div>
-              <div style={{fontSize:12,color:"#5a8aaa",marginBottom:8}}>📍 {lot.address}</div>
-              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                <Chip label={isGolf?"45' GOLF LOT":"52' RESORT LOT"}
-                  color={isGolf?"#5de07a":"#59c8f0"} bg={isGolf?"#0d2a18":"#0d1e2a"}
-                  border={isGolf?"#3cba6e55":"#59c8f055"}/>
-                {lot.hasPool&&<Chip label="🏊 POOL" color="#59c8f0" bg="#0a1a28" border="#59c8f055"/>}
-                {lot.promo&&<Chip label="🏷 PROMO" color="#e05c5c" bg="#2a0e0e" border="#e05c5c55"/>}
-                <Chip label={lot.completion==="READY NOW!"?"✅ READY NOW":lot.completion}
-                  color={lot.completion==="READY NOW!"?"#3cba6e":lot.completion==="June/July"?"#e0c060":"#7a9bb5"}
-                  bg={lot.completion==="READY NOW!"?"#0d2a18":lot.completion==="June/July"?"#2a2000":"#1a2a30"}
-                  border={lot.completion==="READY NOW!"?"#3cba6e55":lot.completion==="June/July"?"#e0c06055":"#3a5a7055"}/>
-              </div>
+          {/* ── ROW 1: title + badges ── */}
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:17,fontWeight:800,color:"#f0ebe3",letterSpacing:"-0.3px",marginBottom:4}}>
+              Lot {lot.lot} — {lot.model} <span style={{color:"#4a7a9b",fontWeight:400,fontSize:13}}>{lot.elevType}</span>
             </div>
+            <div style={{fontSize:12,color:"#5a8aaa",marginBottom:8}}>📍 {lot.address}</div>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+              <Chip label={isGolf?"45' GOLF LOT":"52' RESORT LOT"}
+                color={isGolf?"#5de07a":"#59c8f0"} bg={isGolf?"#0d2a18":"#0d1e2a"}
+                border={isGolf?"#3cba6e55":"#59c8f055"}/>
+              {lot.hasPool&&<Chip label="🏊 POOL" color="#59c8f0" bg="#0a1a28" border="#59c8f055"/>}
+              {lot.promo&&<Chip label="🏷 PROMO" color="#e05c5c" bg="#2a0e0e" border="#e05c5c55"/>}
+              <Chip label={lot.completion==="READY NOW!"?"✅ READY NOW":lot.completion}
+                color={lot.completion==="READY NOW!"?"#3cba6e":lot.completion==="June/July"?"#e0c060":"#7a9bb5"}
+                bg={lot.completion==="READY NOW!"?"#0d2a18":lot.completion==="June/July"?"#2a2000":"#1a2a30"}
+                border={lot.completion==="READY NOW!"?"#3cba6e55":lot.completion==="June/July"?"#e0c06055":"#3a5a7055"}/>
+            </div>
+          </div>
+
+          {/* ── ROW 2: two info cards anchored left ── */}
+          <div style={{display:"flex",gap:12,flexWrap:"wrap",justifyContent:"flex-start",marginBottom:16}}>
 
             {/* Price summary card */}
-            <div style={{background:"#0a1820",border:"1px solid #1e3040",borderRadius:10,padding:"12px 16px",minWidth:200,flex:"0 0 auto"}}>
+            <div style={{background:"#0a1820",border:"1px solid #1e3040",borderRadius:10,padding:"12px 16px",width:220}}>
               <div style={{fontSize:9,color:"#3a5a70",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8,fontWeight:700}}>Price Summary</div>
               <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:"5px 14px",alignItems:"center"}}>
                 <span style={{fontSize:11,color:"#4a6a80"}}>List Price</span>
@@ -161,7 +161,7 @@ function ExpandedRow({lot, allRates, downPct, colCount, propTaxRate}) {
             </div>
 
             {/* Fixed monthly costs card */}
-            <div style={{background:"#0a1820",border:"1px solid #1e3040",borderRadius:10,padding:"12px 16px",minWidth:210,flex:"0 0 auto"}}>
+            <div style={{background:"#0a1820",border:"1px solid #1e3040",borderRadius:10,padding:"12px 16px",width:230}}>
               <div style={{fontSize:9,color:"#3a5a70",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8,fontWeight:700}}>Fixed Monthly Costs</div>
               <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:"4px 14px",alignItems:"center"}}>
                 <span style={{fontSize:10,color:"#4a6a80"}}>Base HOA</span>
