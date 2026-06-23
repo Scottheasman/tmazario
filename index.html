@@ -1,1 +1,527 @@
+import { useState, useMemo } from "react";
 
+// ─── DATA ───────────────────────────────────────────────────────────────────
+// elevation field = "ModelName ElevationType" e.g. "Arezzo Coastal A"
+// We split: model = first word, elevationType = rest
+
+const RAW_LOTS = [
+  // 45' Golf  HOA $735/mo
+  { lot:"8099", model:"Arezzo", elevType:"Coastal A", extColor:"54",  floorPlan:"Concerto 4.0",   address:"3320 Porto Lane",    retail:710704, promo:574704, completion:"June/July",  lotType:"Golf",   hasPool:false },
+  { lot:"2258", model:"Arezzo", elevType:"Med A",     extColor:"16B", floorPlan:"Concerto 4.0",   address:"14541 Derna Terr",   retail:702569, promo:549569, completion:"June/July",  lotType:"Golf",   hasPool:false },
+  { lot:"8149", model:"Arezzo", elevType:"Coastal A", extColor:"52",  floorPlan:"Largo 4.0",      address:"3309 Porto Lane",    retail:734919, promo:624919, completion:"June/July",  lotType:"Golf",   hasPool:false },
+  { lot:"8100", model:"Arezzo", elevType:"Med B",     extColor:"9A",  floorPlan:"Concerto 4.0",   address:"3316 Porto Lane",    retail:707014, promo:599014, completion:"June/July",  lotType:"Golf",   hasPool:false },
+  { lot:"2251", model:"Arezzo", elevType:"Med A",     extColor:"16B", floorPlan:"Concerto 4.0",   address:"14513 Derna Terr",   retail:711869, promo:null,   completion:"Aug/Sept",   lotType:"Golf",   hasPool:false },
+  { lot:"2250", model:"Arezzo", elevType:"Coastal A", extColor:"54",  floorPlan:"Concerto 4.0",   address:"14509 Derna Terr",   retail:714329, promo:null,   completion:"Aug/Sept",   lotType:"Golf",   hasPool:false },
+  { lot:"2257", model:"Arezzo", elevType:"Coastal A", extColor:"51",  floorPlan:"Lyric 4.0",      address:"14537 Derna Terr",   retail:708829, promo:null,   completion:"Aug/Sept",   lotType:"Golf",   hasPool:false },
+  { lot:"2252", model:"Arezzo", elevType:"Coastal A", extColor:"53",  floorPlan:"Concerto 4.0",   address:"14517 Derna Terr",   retail:713619, promo:null,   completion:"Aug/Sept",   lotType:"Golf",   hasPool:false },
+  { lot:"2253", model:"Arezzo", elevType:"Med B",     extColor:"14A", floorPlan:"Concerto 4.0",   address:"14521 Derna Terr",   retail:713614, promo:null,   completion:"Sept/Oct",   lotType:"Golf",   hasPool:false },
+  // 52' Resort  HOA $469/mo
+  { lot:"8031", model:"Farnese", elevType:"Med D",    extColor:"16B", floorPlan:"Concerto 4.0",   address:"3306 Vicenza Ct",    retail:769024, promo:674024, completion:"READY NOW!", lotType:"Resort", hasPool:false },
+  { lot:"9068", model:"Lazio",   elevType:"Coastal C",extColor:"52",  floorPlan:"Concerto 4.0",   address:"3222 Alba Circle",   retail:1036409,promo:899409, completion:"June/July",  lotType:"Resort", hasPool:true  },
+  { lot:"8032", model:"Lazio",   elevType:"Med B",    extColor:"16B", floorPlan:"Concerto 4.0",   address:"3302 Vicenza Ct",    retail:1039594,promo:874594, completion:"June/July",  lotType:"Resort", hasPool:true  },
+  { lot:"8033", model:"Lazio",   elevType:"Coastal B",extColor:"51",  floorPlan:"Symphony 4.0",   address:"3220 Vicenza Ct",    retail:873604, promo:774604, completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
+  { lot:"8034", model:"Lazio",   elevType:"Coastal C",extColor:"53",  floorPlan:"Overture 4.0",   address:"3216 Vicenza Ct",    retail:890844, promo:854844, completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
+  { lot:"8035", model:"Lazio",   elevType:"Med B",    extColor:"16B", floorPlan:"Concerto 4.0",   address:"3212 Vicenza Ct",    retail:1044129,promo:999129, completion:"Aug/Sept",   lotType:"Resort", hasPool:true  },
+  { lot:"8036", model:"Farnese", elevType:"Coastal A",extColor:"53",  floorPlan:"Concerto 4.0",   address:"3208 Vicenza Ct",    retail:842184, promo:799184, completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
+  { lot:"8037", model:"Lazio",   elevType:"Med B",    extColor:"16B", floorPlan:"Manuscript 4.0", address:"3204 Vicenza Ct",    retail:880709, promo:null,   completion:"Sept/Oct",   lotType:"Resort", hasPool:false },
+  { lot:"8038", model:"Lazio",   elevType:"Coastal C",extColor:"52",  floorPlan:"Concerto 4.0",   address:"3122 Vicenza Ct",    retail:1041889,promo:null,   completion:"Oct/Nov",    lotType:"Resort", hasPool:true  },
+  { lot:"8040", model:"Lazio",   elevType:"Coastal C",extColor:"55",  floorPlan:"Concerto 4.0",   address:"3114 Vicenza Ct",    retail:885974, promo:null,   completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
+  { lot:"8039", model:"Lazio",   elevType:"Med A",    extColor:"15A", floorPlan:"Overture 4.0",   address:"3118 Vicenza Ct",    retail:869159, promo:null,   completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
+];
+
+// ─── FEES ────────────────────────────────────────────────────────────────────
+const GOLF_HOA_MO   = 735;   // stated on sheet
+const RESORT_HOA_MO = 469;   // stated on sheet
+const CDD_ANNUAL    = 1958.88; // 52' lot
+const FB_ANNUAL     = 1000;
+const CDD_MO        = Math.round(CDD_ANNUAL / 12);   // 163
+const FB_MO         = Math.round(FB_ANNUAL / 12);    // 83
+
+const RATES       = [0.06, 0.055, 0.05];
+const RATE_LABELS = ["6.0%", "5.5%", "5.0%"];
+const RATE_COLORS = ["#e05c5c", "#d4893a", "#3cba6e"];
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function pmt(price, rate, downPct, years = 30) {
+  const p = price * (1 - downPct / 100);
+  const r = rate / 12;
+  const n = years * 12;
+  return (p * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+}
+const fmt  = n => n == null ? "—" : "$" + Math.round(n).toLocaleString();
+const fmtK = n => n == null ? "—" : "$" + Math.round(n / 1000) + "K";
+const pct  = (a, b) => b ? (((b - a) / b) * 100).toFixed(1) + "%" : "—";
+
+const COMPLETION_ORDER = { "READY NOW!": 0, "June/July": 1, "Aug/Sept": 2, "Sept/Oct": 3, "Oct/Nov": 4 };
+
+// ─── CHIP ─────────────────────────────────────────────────────────────────────
+function Chip({ label, color, bg, border }) {
+  return (
+    <span style={{
+      display:"inline-block", fontSize:10, fontWeight:700, letterSpacing:"0.05em",
+      padding:"2px 6px", borderRadius:4, background: bg, color, border:`1px solid ${border}`,
+      whiteSpace:"nowrap"
+    }}>{label}</span>
+  );
+}
+
+// ─── SORT ICON ────────────────────────────────────────────────────────────────
+function SortIcon({ dir }) {
+  return <span style={{ marginLeft:4, opacity: dir ? 1 : 0.3, fontSize:10 }}>
+    {dir === "asc" ? "▲" : dir === "desc" ? "▼" : "⇅"}
+  </span>;
+}
+
+// ─── STAT CARD ────────────────────────────────────────────────────────────────
+function StatCard({ label, value, sub, color }) {
+  return (
+    <div style={{ background:"#162433", border:"1px solid #253545", borderRadius:10, padding:"12px 18px", minWidth:140 }}>
+      <div style={{ fontSize:11, color:"#5a8aaa", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4 }}>{label}</div>
+      <div style={{ fontSize:22, fontWeight:800, color: color || "#f0ebe3", letterSpacing:"-0.5px" }}>{value}</div>
+      {sub && <div style={{ fontSize:11, color:"#4a6a80", marginTop:2 }}>{sub}</div>}
+    </div>
+  );
+}
+
+// ─── RATE BADGE ───────────────────────────────────────────────────────────────
+function RateBadge({ rate, total, color }) {
+  return (
+    <div style={{ textAlign:"right" }}>
+      <div style={{ fontSize:13, fontWeight:800, color:"#f0ebe3" }}>{fmt(total)}</div>
+      <div style={{ fontSize:10, color, fontWeight:600 }}>{RATE_LABELS[RATES.indexOf(rate)]} rate</div>
+    </div>
+  );
+}
+
+// ─── MAIN ─────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [lotTypeFilter, setLotTypeFilter]   = useState("All");
+  const [modelFilter,   setModelFilter]     = useState("All");
+  const [poolFilter,    setPoolFilter]      = useState("All");
+  const [promoFilter,   setPromoFilter]     = useState("All");
+  const [completionFilter, setCompletionFilter] = useState("All");
+  const [downPct,       setDownPct]         = useState(20);
+  const [sortCol,       setSortCol]         = useState("completion");
+  const [sortDir,       setSortDir]         = useState("asc");
+  const [highlightRate, setHighlightRate]   = useState(0.06);
+  const [expandedLot,   setExpandedLot]     = useState(null);
+
+  // Unique filter values
+  const models      = ["All", ...Array.from(new Set(RAW_LOTS.map(l => l.model))).sort()];
+  const completions = ["All", ...Object.keys(COMPLETION_ORDER)];
+
+  // Filter
+  const filtered = useMemo(() => {
+    return RAW_LOTS.filter(l => {
+      if (lotTypeFilter !== "All" && l.lotType !== lotTypeFilter) return false;
+      if (modelFilter   !== "All" && l.model !== modelFilter)     return false;
+      if (poolFilter    === "Pool" && !l.hasPool)                  return false;
+      if (poolFilter    === "No Pool" && l.hasPool)                return false;
+      if (promoFilter   === "Promo" && !l.promo)                   return false;
+      if (completionFilter !== "All" && l.completion !== completionFilter) return false;
+      return true;
+    });
+  }, [lotTypeFilter, modelFilter, poolFilter, promoFilter, completionFilter]);
+
+  // Sort
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let av, bv;
+      const effA = a.promo ?? a.retail;
+      const effB = b.promo ?? b.retail;
+      switch (sortCol) {
+        case "lot":        av = a.lot;    bv = b.lot;    break;
+        case "model":      av = a.model;  bv = b.model;  break;
+        case "retail":     av = a.retail; bv = b.retail; break;
+        case "promo":      av = a.promo ?? a.retail; bv = b.promo ?? b.retail; break;
+        case "savings":    av = a.promo ? a.retail - a.promo : 0; bv = b.promo ? b.retail - b.promo : 0; break;
+        case "total":      av = pmt(effA, highlightRate, downPct) + (a.lotType==="Golf"?GOLF_HOA_MO:RESORT_HOA_MO) + CDD_MO + FB_MO;
+                           bv = pmt(effB, highlightRate, downPct) + (b.lotType==="Golf"?GOLF_HOA_MO:RESORT_HOA_MO) + CDD_MO + FB_MO; break;
+        case "completion": av = COMPLETION_ORDER[a.completion] ?? 99; bv = COMPLETION_ORDER[b.completion] ?? 99; break;
+        default:           av = 0; bv = 0;
+      }
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filtered, sortCol, sortDir, highlightRate, downPct]);
+
+  function toggleSort(col) {
+    if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortCol(col); setSortDir("asc"); }
+  }
+
+  // Summary stats
+  const promoLots   = sorted.filter(l => l.promo);
+  const avgSavings  = promoLots.length ? promoLots.reduce((s,l) => s + (l.retail - l.promo), 0) / promoLots.length : 0;
+  const lowestTotal = sorted.length ? Math.min(...sorted.map(l => {
+    const eff = l.promo ?? l.retail;
+    return pmt(eff, highlightRate, downPct) + (l.lotType==="Golf"?GOLF_HOA_MO:RESORT_HOA_MO) + CDD_MO + FB_MO;
+  })) : 0;
+
+  const TH = ({ col, children, right }) => (
+    <th onClick={() => toggleSort(col)} style={{
+      padding:"10px 12px", textAlign: right?"right":"left", fontSize:10, fontWeight:700, color:"#5a8aaa",
+      textTransform:"uppercase", letterSpacing:"0.07em", borderBottom:"1px solid #1e3040",
+      cursor:"pointer", whiteSpace:"nowrap", userSelect:"none",
+      background: sortCol===col ? "#1a2e40" : "#131f2b"
+    }}>
+      {children}<SortIcon dir={sortCol===col ? sortDir : null} />
+    </th>
+  );
+
+  const completionColor = c => c==="READY NOW!" ? "#3cba6e" : c==="June/July" ? "#e0c060" : c==="Aug/Sept" ? "#7a9bb5" : "#5a7080";
+
+  return (
+    <div style={{ fontFamily:"'Inter',system-ui,sans-serif", background:"#0c1620", minHeight:"100vh", color:"#e0d8cc" }}>
+
+      {/* ── HEADER ── */}
+      <div style={{ background:"linear-gradient(160deg,#142030 0%,#0c1620 100%)", borderBottom:"1px solid #1e3040", padding:"24px 20px 18px" }}>
+        <div style={{ maxWidth:1500, margin:"0 auto" }}>
+          <div style={{ display:"flex", alignItems:"baseline", gap:14, flexWrap:"wrap", marginBottom:6 }}>
+            <h1 style={{ margin:0, fontSize:24, fontWeight:800, letterSpacing:"-0.5px", color:"#f0ebe3" }}>Esplanade Azario</h1>
+            <span style={{ fontSize:12, color:"#4a7a9b", letterSpacing:"0.1em", textTransform:"uppercase", fontWeight:600 }}>Lakewood Ranch · Quick Move-In Analysis</span>
+          </div>
+          <p style={{ margin:"0 0 16px", color:"#3a6070", fontSize:12 }}>
+            Total monthly cost of ownership · principal + interest + HOA + CDD + min. F&amp;B · taxes &amp; insurance not included
+          </p>
+
+          {/* ── FILTERS ROW 1 ── */}
+          <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:10, alignItems:"center" }}>
+            {/* Lot type */}
+            <div style={{ display:"flex", borderRadius:7, overflow:"hidden", border:"1px solid #1e3040" }}>
+              {["All","Golf","Resort"].map(v => (
+                <button key={v} onClick={() => setLotTypeFilter(v)} style={{
+                  padding:"6px 14px", fontSize:12, fontWeight:600, border:"none", cursor:"pointer",
+                  background: lotTypeFilter===v ? "#2060a0" : "#101c28", color: lotTypeFilter===v ? "#fff" : "#5a8aaa"
+                }}>{v==="All" ? "All Lots" : v==="Golf" ? "45' Golf" : "52' Resort"}</button>
+              ))}
+            </div>
+
+            {/* Model */}
+            <div style={{ display:"flex", gap:0, borderRadius:7, overflow:"hidden", border:"1px solid #1e3040" }}>
+              {models.map(m => (
+                <button key={m} onClick={() => setModelFilter(m)} style={{
+                  padding:"6px 12px", fontSize:12, fontWeight:600, border:"none", cursor:"pointer",
+                  background: modelFilter===m ? "#304a20" : "#101c28",
+                  color: modelFilter===m ? "#7de060" : "#5a8aaa"
+                }}>{m}</button>
+              ))}
+            </div>
+
+            {/* Pool */}
+            <div style={{ display:"flex", borderRadius:7, overflow:"hidden", border:"1px solid #1e3040" }}>
+              {["All","Pool","No Pool"].map(v => (
+                <button key={v} onClick={() => setPoolFilter(v)} style={{
+                  padding:"6px 12px", fontSize:12, fontWeight:600, border:"none", cursor:"pointer",
+                  background: poolFilter===v ? "#203040" : "#101c28",
+                  color: poolFilter===v ? "#59c8f0" : "#5a8aaa"
+                }}>{v}</button>
+              ))}
+            </div>
+
+            {/* Promo */}
+            <div style={{ display:"flex", borderRadius:7, overflow:"hidden", border:"1px solid #1e3040" }}>
+              {["All","Promo"].map(v => (
+                <button key={v} onClick={() => setPromoFilter(v)} style={{
+                  padding:"6px 12px", fontSize:12, fontWeight:600, border:"none", cursor:"pointer",
+                  background: promoFilter===v ? "#402020" : "#101c28",
+                  color: promoFilter===v ? "#e05c5c" : "#5a8aaa"
+                }}>{v==="All" ? "All Pricing" : "🏷 Promo Only"}</button>
+              ))}
+            </div>
+
+            {/* Completion */}
+            <select value={completionFilter} onChange={e => setCompletionFilter(e.target.value)} style={{
+              padding:"6px 10px", fontSize:12, fontWeight:600, background:"#101c28",
+              color:"#7a9bb5", border:"1px solid #1e3040", borderRadius:7, cursor:"pointer"
+            }}>
+              {completions.map(c => <option key={c} value={c}>{c === "All" ? "All Timelines" : c}</option>)}
+            </select>
+          </div>
+
+          {/* ── FILTERS ROW 2: Down + Rate highlight ── */}
+          <div style={{ display:"flex", flexWrap:"wrap", gap:10, alignItems:"center" }}>
+            <span style={{ fontSize:11, color:"#3a6070", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.08em" }}>Down Payment:</span>
+            <div style={{ display:"flex", borderRadius:7, overflow:"hidden", border:"1px solid #1e3040" }}>
+              {[10,15,20,25].map(p => (
+                <button key={p} onClick={() => setDownPct(p)} style={{
+                  padding:"5px 12px", fontSize:12, fontWeight:700, border:"none", cursor:"pointer",
+                  background: downPct===p ? "#1a3050" : "#101c28",
+                  color: downPct===p ? "#59c0f0" : "#4a7080"
+                }}>{p}%</button>
+              ))}
+            </div>
+            <span style={{ fontSize:11, color:"#3a6070", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.08em", marginLeft:8 }}>Sort/Highlight Rate:</span>
+            <div style={{ display:"flex", borderRadius:7, overflow:"hidden", border:"1px solid #1e3040" }}>
+              {RATES.map((r, i) => (
+                <button key={r} onClick={() => setHighlightRate(r)} style={{
+                  padding:"5px 12px", fontSize:12, fontWeight:700, border:"none", cursor:"pointer",
+                  background: highlightRate===r ? "#1e1010" : "#101c28",
+                  color: highlightRate===r ? RATE_COLORS[i] : "#4a7080"
+                }}>{RATE_LABELS[i]}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── STAT CARDS ── */}
+      <div style={{ maxWidth:1500, margin:"0 auto", padding:"14px 20px 0" }}>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
+          <StatCard label="Lots Shown"     value={sorted.length}          sub={`of ${RAW_LOTS.length} total`} />
+          <StatCard label="Promo Available" value={promoLots.length}      sub="with active discount" color="#e05c5c" />
+          <StatCard label="Avg Promo Savings" value={fmtK(avgSavings)}    sub="off retail" color="#3cba6e" />
+          <StatCard label={`Lowest Total (${RATE_LABELS[RATES.indexOf(highlightRate)]})`}
+                    value={sorted.length ? fmt(lowestTotal) : "—"} sub="/mo all-in" color={RATE_COLORS[RATES.indexOf(highlightRate)]} />
+          <StatCard label="Ready Now"
+                    value={sorted.filter(l=>l.completion==="READY NOW!").length}
+                    sub="immediate delivery" color="#3cba6e" />
+          <StatCard label="With Pool"
+                    value={sorted.filter(l=>l.hasPool).length}
+                    sub="included" color="#59c8f0" />
+          <StatCard label={`Down (${downPct}%)`}
+                    value={sorted.length ? fmtK((sorted[0].promo??sorted[0].retail)*downPct/100) : "—"}
+                    sub="on lowest priced lot" color="#9c7de0" />
+        </div>
+      </div>
+
+      {/* ── TABLE ── */}
+      <div style={{ maxWidth:1500, margin:"14px auto 0", padding:"0 20px 40px", overflowX:"auto" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+          <thead>
+            <tr>
+              {/* Group headers */}
+              <th colSpan={5} style={{ padding:"6px 12px", background:"#0e1a24", fontSize:10, fontWeight:700, color:"#3a5a70", textTransform:"uppercase", letterSpacing:"0.1em", textAlign:"left", borderBottom:"1px solid #1a2e3e" }}>Property</th>
+              <th colSpan={4} style={{ padding:"6px 12px", background:"#0e1a24", fontSize:10, fontWeight:700, color:"#3a5a70", textTransform:"uppercase", letterSpacing:"0.1em", textAlign:"left", borderBottom:"1px solid #1a2e3e", borderLeft:"1px solid #1e3040" }}>Pricing</th>
+              <th colSpan={3} style={{ padding:"6px 12px", background:"#0e1a24", fontSize:10, fontWeight:700, color:"#3a5a70", textTransform:"uppercase", letterSpacing:"0.1em", textAlign:"left", borderBottom:"1px solid #1a2e3e", borderLeft:"1px solid #1e3040" }}>Monthly Fees</th>
+              <th colSpan={2} style={{ padding:"6px 12px", background:"#1a1000", fontSize:10, fontWeight:700, color: RATE_COLORS[0], textTransform:"uppercase", letterSpacing:"0.1em", textAlign:"center", borderBottom:"1px solid #1a2e3e", borderLeft:"1px solid #1e3040" }}>@ 6.0%</th>
+              <th colSpan={2} style={{ padding:"6px 12px", background:"#16110a", fontSize:10, fontWeight:700, color: RATE_COLORS[1], textTransform:"uppercase", letterSpacing:"0.1em", textAlign:"center", borderBottom:"1px solid #1a2e3e", borderLeft:"1px solid #1e3040" }}>@ 5.5%</th>
+              <th colSpan={2} style={{ padding:"6px 12px", background:"#0e1a10", fontSize:10, fontWeight:700, color: RATE_COLORS[2], textTransform:"uppercase", letterSpacing:"0.1em", textAlign:"center", borderBottom:"1px solid #1a2e3e", borderLeft:"1px solid #1e3040" }}>@ 5.0%</th>
+            </tr>
+            <tr>
+              <TH col="lot">Lot #</TH>
+              <TH col="model">Model</TH>
+              <th style={{ padding:"8px 12px", fontSize:10, fontWeight:700, color:"#5a8aaa", textTransform:"uppercase", letterSpacing:"0.07em", borderBottom:"1px solid #1e3040", background:"#131f2b", whiteSpace:"nowrap" }}>Elev / Color</th>
+              <th style={{ padding:"8px 12px", fontSize:10, fontWeight:700, color:"#5a8aaa", textTransform:"uppercase", letterSpacing:"0.07em", borderBottom:"1px solid #1e3040", background:"#131f2b", whiteSpace:"nowrap" }}>Floor Plan</th>
+              <TH col="completion">Timeline</TH>
+
+              <th style={{ padding:"8px 12px", fontSize:10, fontWeight:700, color:"#5a8aaa", textTransform:"uppercase", letterSpacing:"0.07em", borderBottom:"1px solid #1e3040", background:"#131f2b", whiteSpace:"nowrap", borderLeft:"1px solid #1e3040" }}>Lot Type</th>
+              <TH col="retail" right>Retail</TH>
+              <TH col="promo" right>Promo</TH>
+              <TH col="savings" right>Savings</TH>
+
+              <th style={{ padding:"8px 12px", fontSize:10, fontWeight:700, color:"#5a8aaa", textTransform:"uppercase", letterSpacing:"0.07em", borderBottom:"1px solid #1e3040", background:"#131f2b", whiteSpace:"nowrap", textAlign:"right", borderLeft:"1px solid #1e3040" }}>HOA</th>
+              <th style={{ padding:"8px 12px", fontSize:10, fontWeight:700, color:"#5a8aaa", textTransform:"uppercase", letterSpacing:"0.07em", borderBottom:"1px solid #1e3040", background:"#131f2b", whiteSpace:"nowrap", textAlign:"right" }}>CDD</th>
+              <th style={{ padding:"8px 12px", fontSize:10, fontWeight:700, color:"#5a8aaa", textTransform:"uppercase", letterSpacing:"0.07em", borderBottom:"1px solid #1e3040", background:"#131f2b", whiteSpace:"nowrap", textAlign:"right" }}>F&amp;B</th>
+
+              {RATES.map((r, i) => [
+                <th key={`pi${i}`} style={{ padding:"8px 12px", fontSize:10, fontWeight:700, color: RATE_COLORS[i], textTransform:"uppercase", letterSpacing:"0.07em", borderBottom:"1px solid #1e3040", background:"#131f2b", whiteSpace:"nowrap", textAlign:"right", borderLeft:"1px solid #1e3040", opacity:0.8 }}>P&amp;I</th>,
+                <th key={`tot${i}`} style={{ padding:"8px 12px", fontSize:10, fontWeight:700, color: RATE_COLORS[i], textTransform:"uppercase", letterSpacing:"0.07em", borderBottom:"1px solid #1e3040", background:"#131f2b", whiteSpace:"nowrap", textAlign:"right" }}>Total/mo</th>
+              ])}
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.length === 0 && (
+              <tr><td colSpan={18} style={{ padding:"32px", textAlign:"center", color:"#3a5a70", fontSize:14 }}>No lots match current filters</td></tr>
+            )}
+            {sorted.map((lot, i) => {
+              const eff     = lot.promo ?? lot.retail;
+              const isGolf  = lot.lotType === "Golf";
+              const hoa     = isGolf ? GOLF_HOA_MO : RESORT_HOA_MO;
+              const fixed   = hoa + CDD_MO + FB_MO;
+              const savings = lot.promo ? lot.retail - lot.promo : null;
+              const savPct  = lot.promo ? ((lot.retail - lot.promo) / lot.retail * 100).toFixed(1) : null;
+              const isReady = lot.completion === "READY NOW!";
+              const isSoon  = lot.completion === "June/July";
+              const rowBg   = i % 2 === 0 ? "#0c1620" : "#0e1c28";
+              const isExpanded = expandedLot === lot.lot;
+              const accentLeft = isReady ? "#3cba6e" : lot.promo && isSoon ? "#e0c060" : "transparent";
+
+              return (
+                <tr key={lot.lot}
+                  onClick={() => setExpandedLot(isExpanded ? null : lot.lot)}
+                  style={{ background: isExpanded ? "#132030" : rowBg, borderLeft:`3px solid ${accentLeft}`, cursor:"pointer",
+                    transition:"background 0.12s" }}
+                  onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = "#111e2e"; }}
+                  onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = rowBg; }}
+                >
+                  {/* Lot # */}
+                  <td style={{ padding:"10px 12px", fontWeight:800, color:"#c8d8e8", whiteSpace:"nowrap", fontSize:13 }}>
+                    {lot.lot}
+                  </td>
+
+                  {/* Model - THE KEY COLUMN */}
+                  <td style={{ padding:"10px 12px", whiteSpace:"nowrap" }}>
+                    <div style={{ fontWeight:800, fontSize:13, color:"#e8d8c0", letterSpacing:"0.02em" }}>{lot.model}</div>
+                    <div style={{ fontSize:10, color:"#4a7080", marginTop:1 }}>{lot.elevType}</div>
+                  </td>
+
+                  {/* Elev + Color */}
+                  <td style={{ padding:"10px 12px", color:"#4a7080", whiteSpace:"nowrap", fontSize:11 }}>
+                    {lot.extColor}
+                  </td>
+
+                  {/* Floor Plan */}
+                  <td style={{ padding:"10px 12px", color:"#6a8898", whiteSpace:"nowrap", fontSize:11 }}>
+                    {lot.floorPlan}
+                  </td>
+
+                  {/* Timeline */}
+                  <td style={{ padding:"10px 12px", whiteSpace:"nowrap" }}>
+                    <span style={{ fontSize:11, fontWeight:700, color: completionColor(lot.completion),
+                      background: isReady ? "#0d2a1a" : isSoon ? "#2a2000" : "transparent",
+                      padding: (isReady||isSoon) ? "2px 7px" : 0, borderRadius:4 }}>
+                      {lot.completion}
+                    </span>
+                  </td>
+
+                  {/* Lot Type */}
+                  <td style={{ padding:"10px 12px", borderLeft:"1px solid #1e3040", whiteSpace:"nowrap" }}>
+                    <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                      <Chip label={isGolf ? "45' GOLF" : "52' RESORT"}
+                        color={isGolf ? "#5de07a" : "#59c8f0"}
+                        bg={isGolf ? "#0d2a18" : "#0d1e2a"}
+                        border={isGolf ? "#3cba6e33" : "#59c8f033"} />
+                      {lot.hasPool && <Chip label="POOL" color="#59c8f0" bg="#0d1a28" border="#59c8f044" />}
+                    </div>
+                  </td>
+
+                  {/* Retail */}
+                  <td style={{ padding:"10px 12px", textAlign:"right", color:"#4a7080", whiteSpace:"nowrap",
+                    textDecoration: lot.promo ? "line-through" : "none", fontSize:11 }}>
+                    {fmt(lot.retail)}
+                  </td>
+
+                  {/* Promo */}
+                  <td style={{ padding:"10px 12px", textAlign:"right", fontWeight:800, whiteSpace:"nowrap",
+                    color: lot.promo ? "#e05c5c" : "#304050", fontSize: lot.promo ? 13 : 11 }}>
+                    {lot.promo ? fmt(lot.promo) : "—"}
+                  </td>
+
+                  {/* Savings */}
+                  <td style={{ padding:"10px 12px", textAlign:"right", whiteSpace:"nowrap" }}>
+                    {savings ? (
+                      <div>
+                        <div style={{ fontWeight:800, color:"#3cba6e", fontSize:12 }}>{fmt(savings)}</div>
+                        <div style={{ fontSize:10, color:"#2a7a4a" }}>↓ {savPct}%</div>
+                      </div>
+                    ) : <span style={{ color:"#2a4050" }}>—</span>}
+                  </td>
+
+                  {/* HOA */}
+                  <td style={{ padding:"10px 12px", textAlign:"right", borderLeft:"1px solid #1e3040",
+                    color: isGolf ? "#5de07a" : "#59c8f0", fontWeight:600, whiteSpace:"nowrap", fontSize:11 }}>
+                    {fmt(hoa)}
+                  </td>
+
+                  {/* CDD */}
+                  <td style={{ padding:"10px 12px", textAlign:"right", color:"#d47820", fontWeight:500, whiteSpace:"nowrap", fontSize:11 }}>
+                    {fmt(CDD_MO)}
+                  </td>
+
+                  {/* F&B */}
+                  <td style={{ padding:"10px 12px", textAlign:"right", color:"#9c70c0", fontWeight:500, whiteSpace:"nowrap", fontSize:11 }}>
+                    {fmt(FB_MO)}
+                  </td>
+
+                  {/* Rate columns */}
+                  {RATES.map((rate, ri) => {
+                    const pi    = pmt(eff, rate, downPct);
+                    const total = pi + fixed;
+                    const isHL  = rate === highlightRate;
+                    return [
+                      <td key={`pi${ri}`} style={{ padding:"10px 12px", textAlign:"right", borderLeft:"1px solid #1e3040",
+                        color: RATE_COLORS[ri], fontWeight:600, whiteSpace:"nowrap", fontSize:11,
+                        opacity: isHL ? 1 : 0.55 }}>
+                        {fmt(pi)}
+                      </td>,
+                      <td key={`tot${ri}`} style={{ padding:"10px 12px", textAlign:"right", whiteSpace:"nowrap",
+                        background: isHL ? `${RATE_COLORS[ri]}18` : "transparent",
+                        fontWeight: isHL ? 800 : 600,
+                        fontSize: isHL ? 13 : 11,
+                        color: isHL ? "#f0ebe3" : RATE_COLORS[ri],
+                        opacity: isHL ? 1 : 0.6 }}>
+                        {fmt(total)}
+                      </td>
+                    ];
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        {/* ── EXPANDED DETAIL would go here – omitted for brevity ── */}
+
+        {/* ── FOOTER FEES ── */}
+        <div style={{ marginTop:28, display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+          {/* Recurring fees breakdown */}
+          <div style={{ background:"#101c28", border:"1px solid #1e3040", borderRadius:12, padding:"16px 20px" }}>
+            <div style={{ fontSize:11, fontWeight:800, color:"#3a6070", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:12 }}>Recurring Fee Breakdown</div>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign:"left", padding:"4px 0", color:"#3a6070", fontSize:10, fontWeight:700 }}>Fee</th>
+                  <th style={{ textAlign:"right", padding:"4px 0", color:"#3a5060", fontSize:10, fontWeight:700 }}>Annual</th>
+                  <th style={{ textAlign:"right", padding:"4px 0", color:"#3a6070", fontSize:10, fontWeight:700 }}>Monthly</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ["HOA Base Assessment",          "$3,946.63",  "$329"],
+                  ["Golf Membership Assessment",   "$3,277.30",  "$273", true],
+                  ["Landscape Maint. (52' lot)",   "$1,680.42",  "$140"],
+                  ["CDD Debt & O&M (52' lot)",     "$1,958.88",  "$163"],
+                  ["Min. Food & Beverage",         "$1,000.00",  "$83"],
+                  ["Golf Cart Fee",                "$29/round",  "—",   true],
+                ].map(([label, ann, mo, golf]) => (
+                  <tr key={label}>
+                    <td style={{ padding:"5px 0", color: golf ? "#5de07a" : "#7a9aaa", fontSize:11, display:"flex", alignItems:"center", gap:6 }}>
+                      {golf && <span style={{ fontSize:9, color:"#3cba6e" }}>⛳</span>}{label}
+                    </td>
+                    <td style={{ padding:"5px 0", textAlign:"right", color:"#4a6a80", fontSize:11 }}>{ann}</td>
+                    <td style={{ padding:"5px 0", textAlign:"right", color:"#c8d0d8", fontWeight:700, fontSize:12 }}>{mo}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* One-time fees */}
+          <div style={{ background:"#101c28", border:"1px solid #1e3040", borderRadius:12, padding:"16px 20px" }}>
+            <div style={{ fontSize:11, fontWeight:800, color:"#3a6070", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:12 }}>One-Time Closing Fees</div>
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
+              <tbody>
+                {[
+                  ["Community Contribution",   "$3,000", "Seller"],
+                  ["Builder Fee",              "$3,000", "Seller"],
+                  ["Initiation Fee",           "$2,500", "Seller/Affiliated"],
+                  ["Irrigation Hook-Up",       "$750",   "Seller"],
+                  ["Administration Fee",       "$150",   "Mgmt Co."],
+                  ["Estoppel Fee (if outside lender)", "$250", "Mgmt Co."],
+                ].map(([label, amt, payee]) => (
+                  <tr key={label}>
+                    <td style={{ padding:"5px 0", color:"#7a9aaa", fontSize:11 }}>{label}</td>
+                    <td style={{ padding:"5px 0", textAlign:"right", color:"#f0d890", fontWeight:700, fontSize:12 }}>{amt}</td>
+                    <td style={{ padding:"5px 0 5px 12px", color:"#3a5a60", fontSize:10 }}>{payee}</td>
+                  </tr>
+                ))}
+                <tr style={{ borderTop:"1px solid #1e3040" }}>
+                  <td style={{ padding:"8px 0 4px", color:"#c8d0d8", fontWeight:800, fontSize:12 }}>Total One-Time</td>
+                  <td style={{ padding:"8px 0 4px", textAlign:"right", color:"#f0d890", fontWeight:800, fontSize:14 }}>~$9,650</td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+            <div style={{ marginTop:12, padding:"10px 12px", background:"#0c1820", borderRadius:8, fontSize:11, color:"#3a5a70", lineHeight:1.7 }}>
+              <strong style={{ color:"#5a8aaa" }}>Note:</strong> Total /mo columns include HOA + CDD + F&amp;B + P&amp;I only.
+              Add est. <span style={{ color:"#e0c060" }}>$400–700/mo</span> for property taxes and
+              <span style={{ color:"#e0c060" }}> $250–500/mo</span> for homeowner's + flood insurance.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
