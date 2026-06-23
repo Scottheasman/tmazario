@@ -106,30 +106,34 @@ function StatCard({label,value,sub,color}) {
 }
 
 // ─── EXPANDED ROW DETAIL ─────────────────────────────────────────────────────
-function ExpandedRow({lot, allRates, downPct, colCount}) {
-  const isGolf = lot.lotType==="Golf";
-  const fixed  = isGolf?GOLF_HOA_MO:RESORT_HOA_MO; // now includes ALL recurring fees
-  const eff    = lot.promo??lot.retail;
-  const sav    = lot.promo?lot.retail-lot.promo:null;
+function ExpandedRow({lot, allRates, downPct, colCount, propTaxRate}) {
+  const isGolf   = lot.lotType==="Golf";
+  const fixed    = isGolf?GOLF_HOA_MO:RESORT_HOA_MO; // all recurring fees
+  const eff      = lot.promo??lot.retail;
+  const sav      = lot.promo?lot.retail-lot.promo:null;
+  const taxMo    = Math.round(eff * (propTaxRate/100) / 12);
+  const INS_MO   = 400; // conservative estimate: ~$250 HO + $150 flood
 
   return (
     <tr>
       <td colSpan={colCount} style={{padding:0,borderBottom:"2px solid #2a4a60"}}>
-        <div className="slide-down" style={{background:"linear-gradient(135deg,#0f2030 0%,#0d1a28 100%)",padding:"20px 24px",borderLeft:"3px solid #2a7de1"}}>
+        <div className="slide-down" style={{background:"linear-gradient(135deg,#0f2030 0%,#0d1a28 100%)",padding:"18px 22px",borderLeft:"3px solid #2a7de1"}}>
 
-          {/* Top: address + badges */}
-          <div style={{display:"flex",flexWrap:"wrap",gap:12,alignItems:"flex-start",marginBottom:18}}>
-            <div style={{flex:1,minWidth:200}}>
-              <div style={{fontSize:18,fontWeight:800,color:"#f0ebe3",letterSpacing:"-0.3px",marginBottom:4}}>
-                Lot {lot.lot} — {lot.model} <span style={{color:"#4a7a9b",fontWeight:400,fontSize:14}}>{lot.elevType}</span>
+          {/* ── ROW 1: title + two info cards side by side ── */}
+          <div style={{display:"flex",flexWrap:"wrap",gap:12,alignItems:"flex-start",marginBottom:16}}>
+
+            {/* Title block */}
+            <div style={{minWidth:220,flex:"1 1 220px"}}>
+              <div style={{fontSize:17,fontWeight:800,color:"#f0ebe3",letterSpacing:"-0.3px",marginBottom:4}}>
+                Lot {lot.lot} — {lot.model} <span style={{color:"#4a7a9b",fontWeight:400,fontSize:13}}>{lot.elevType}</span>
               </div>
-              <div style={{fontSize:13,color:"#5a8aaa",marginBottom:6}}>📍 {lot.address}</div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              <div style={{fontSize:12,color:"#5a8aaa",marginBottom:8}}>📍 {lot.address}</div>
+              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                 <Chip label={isGolf?"45' GOLF LOT":"52' RESORT LOT"}
                   color={isGolf?"#5de07a":"#59c8f0"} bg={isGolf?"#0d2a18":"#0d1e2a"}
                   border={isGolf?"#3cba6e55":"#59c8f055"}/>
-                {lot.hasPool&&<Chip label="🏊 POOL INCLUDED" color="#59c8f0" bg="#0a1a28" border="#59c8f055"/>}
-                {lot.promo&&<Chip label="🏷 PROMO PRICING" color="#e05c5c" bg="#2a0e0e" border="#e05c5c55"/>}
+                {lot.hasPool&&<Chip label="🏊 POOL" color="#59c8f0" bg="#0a1a28" border="#59c8f055"/>}
+                {lot.promo&&<Chip label="🏷 PROMO" color="#e05c5c" bg="#2a0e0e" border="#e05c5c55"/>}
                 <Chip label={lot.completion==="READY NOW!"?"✅ READY NOW":lot.completion}
                   color={lot.completion==="READY NOW!"?"#3cba6e":lot.completion==="June/July"?"#e0c060":"#7a9bb5"}
                   bg={lot.completion==="READY NOW!"?"#0d2a18":lot.completion==="June/July"?"#2a2000":"#1a2a30"}
@@ -137,19 +141,17 @@ function ExpandedRow({lot, allRates, downPct, colCount}) {
               </div>
             </div>
 
-            {/* Price summary box */}
-            <div style={{background:"#0a1820",border:"1px solid #1e3040",borderRadius:10,padding:"14px 18px",minWidth:220}}>
-              <div style={{fontSize:10,color:"#3a5a70",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}}>Price Summary</div>
-              <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:"4px 12px",alignItems:"center"}}>
+            {/* Price summary card */}
+            <div style={{background:"#0a1820",border:"1px solid #1e3040",borderRadius:10,padding:"12px 16px",minWidth:200,flex:"0 0 auto"}}>
+              <div style={{fontSize:9,color:"#3a5a70",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8,fontWeight:700}}>Price Summary</div>
+              <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:"5px 14px",alignItems:"center"}}>
                 <span style={{fontSize:11,color:"#4a6a80"}}>List Price</span>
-                <span style={{fontSize:13,color:"#4a7080",textDecoration:lot.promo?"line-through":"none"}}>{fmt(lot.retail)}</span>
+                <span style={{fontSize:12,color:"#4a7080",textDecoration:lot.promo?"line-through":"none"}}>{fmt(lot.retail)}</span>
                 {lot.promo&&<>
                   <span style={{fontSize:11,color:"#4a6a80"}}>Promo Price</span>
-                  <span style={{fontSize:16,fontWeight:800,color:"#e05c5c"}}>{fmt(lot.promo)}</span>
+                  <span style={{fontSize:15,fontWeight:800,color:"#e05c5c"}}>{fmt(lot.promo)}</span>
                   <span style={{fontSize:11,color:"#4a6a80"}}>You Save</span>
-                  <span style={{fontSize:14,fontWeight:800,color:"#3cba6e"}}>
-                    {fmt(sav)} <span style={{fontSize:11,fontWeight:400}}>({((sav/lot.retail)*100).toFixed(1)}%)</span>
-                  </span>
+                  <span style={{fontSize:13,fontWeight:800,color:"#3cba6e"}}>{fmt(sav)} <span style={{fontSize:10,fontWeight:400,color:"#267a48"}}>({((sav/lot.retail)*100).toFixed(1)}%)</span></span>
                 </>}
                 <span style={{fontSize:11,color:"#4a6a80"}}>Floor Plan</span>
                 <span style={{fontSize:12,color:"#8aa0b0"}}>{lot.floorPlan}</span>
@@ -158,85 +160,100 @@ function ExpandedRow({lot, allRates, downPct, colCount}) {
               </div>
             </div>
 
-            {/* Monthly fees box */}
-            <div style={{background:"#0a1820",border:"1px solid #1e3040",borderRadius:10,padding:"14px 18px",minWidth:200}}>
-              <div style={{fontSize:10,color:"#3a5a70",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}}>Fixed Monthly Costs</div>
-              <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:"4px 12px",alignItems:"center"}}>
+            {/* Fixed monthly costs card */}
+            <div style={{background:"#0a1820",border:"1px solid #1e3040",borderRadius:10,padding:"12px 16px",minWidth:210,flex:"0 0 auto"}}>
+              <div style={{fontSize:9,color:"#3a5a70",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8,fontWeight:700}}>Fixed Monthly Costs</div>
+              <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:"4px 14px",alignItems:"center"}}>
                 <span style={{fontSize:10,color:"#4a6a80"}}>Base HOA</span>
                 <span style={{fontSize:12,fontWeight:600,color:"#8aa8c0"}}>{fmt(FEE_BASE_MO)}</span>
                 <span style={{fontSize:10,color:"#4a6a80"}}>Landscape</span>
                 <span style={{fontSize:12,fontWeight:600,color:"#8aa8c0"}}>{fmt(FEE_LANDSCAPE_MO)}</span>
-                {isGolf&&<><span style={{fontSize:10,color:"#5de07a"}}>⛳ Golf Membership</span>
-                <span style={{fontSize:12,fontWeight:600,color:"#5de07a"}}>{fmt(FEE_GOLF_MO)}</span></>}
-                <span style={{fontSize:10,color:"#4a6a80"}}>CDD</span>
+                {isGolf&&<>
+                  <span style={{fontSize:10,color:"#5de07a"}}>⛳ Golf Membership</span>
+                  <span style={{fontSize:12,fontWeight:600,color:"#5de07a"}}>{fmt(FEE_GOLF_MO)}</span>
+                </>}
+                <span style={{fontSize:10,color:"#d47820"}}>CDD</span>
                 <span style={{fontSize:12,fontWeight:600,color:"#d47820"}}>{fmt(FEE_CDD_MO)}</span>
-                <span style={{fontSize:10,color:"#4a6a80"}}>Min F&amp;B</span>
+                <span style={{fontSize:10,color:"#9c70c0"}}>Min F&amp;B</span>
                 <span style={{fontSize:12,fontWeight:600,color:"#9c70c0"}}>{fmt(FEE_FB_MO)}</span>
-                <span style={{fontSize:11,color:"#c0c8d0",fontWeight:700,borderTop:"1px solid #1e3040",paddingTop:5,marginTop:2}}>Total Fixed</span>
-                <span style={{fontSize:15,fontWeight:800,color:isGolf?"#5de07a":"#59c8f0",borderTop:"1px solid #1e3040",paddingTop:5,marginTop:2}}>{fmt(fixed)}/mo</span>
+                <span style={{fontSize:10,color:"#3a5a70",borderTop:"1px solid #1e3040",paddingTop:4,marginTop:2}}>Subtotal</span>
+                <span style={{fontSize:14,fontWeight:800,color:isGolf?"#5de07a":"#59c8f0",borderTop:"1px solid #1e3040",paddingTop:4,marginTop:2}}>{fmt(fixed)}/mo</span>
               </div>
             </div>
           </div>
 
-          {/* Rate comparison cards */}
-          <div style={{marginTop:4}}>
-            <div style={{fontSize:10,color:"#3a5a70",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:10}}>
-              Monthly Payment Comparison — {downPct}% down · {fmt(eff*(downPct/100))} down payment · {fmt(eff*(1-downPct/100))} financed
+          {/* ── ROW 2: Rate cards ── */}
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:9,color:"#3a5a70",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:10,fontWeight:700}}>
+              Monthly Payment Comparison — {downPct}% down · {fmt(eff*(downPct/100))} down · {fmt(eff*(1-downPct/100))} financed
+              <span style={{marginLeft:12,color:"#4a6a40"}}>Prop tax @ {propTaxRate}% = {fmt(taxMo)}/mo · Insurance est. {fmt(INS_MO)}/mo</span>
             </div>
             <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
               {allRates.map(rObj=>{
-                const pi    = pmt(eff, rObj.rate, downPct);
-                const total = pi+fixed;
-                const isHL  = rObj.key==="r0"; // default highlight first
+                const pi       = pmt(eff, rObj.rate, downPct);
+                const feesOnly = pi + fixed;
+                const allIn    = pi + fixed + taxMo + INS_MO;
                 return (
                   <div key={rObj.key} style={{
                     background:"#0c1a26",border:`1px solid ${rObj.color}44`,borderRadius:10,
-                    padding:"12px 16px",minWidth:155,flex:"0 0 auto",
-                    boxShadow: rObj.isCurrent?`0 0 12px ${rObj.color}22`:"none"}}>
-                    <div style={{fontSize:10,color:rObj.color,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>
-                      {rObj.isCurrent&&"● "}
-                      {rObj.isCustom&&"✎ "}
-                      {rObj.label}
+                    padding:"12px 15px",minWidth:170,flex:"0 0 auto",
+                    boxShadow:rObj.isCurrent?`0 0 14px ${rObj.color}22`:"none"}}>
+                    <div style={{fontSize:10,color:rObj.color,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>
+                      {rObj.isCurrent&&"● "}{rObj.isCustom&&"✎ "}{rObj.label}
                     </div>
-                    <div style={{fontSize:11,color:"#4a6a80",marginBottom:2}}>P&amp;I</div>
-                    <div style={{fontSize:16,fontWeight:800,color:rObj.color,marginBottom:6}}>{fmt(pi)}</div>
-                    <div style={{borderTop:"1px solid #1e3040",paddingTop:6}}>
-                      <div style={{fontSize:10,color:"#4a6a80",marginBottom:2}}>Total /mo (P&amp;I + fees)</div>
-                      <div style={{fontSize:20,fontWeight:900,color:"#f0ebe3"}}>{fmt(total)}</div>
+                    {/* P&I */}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:3}}>
+                      <span style={{fontSize:10,color:"#4a6a80"}}>P&amp;I</span>
+                      <span style={{fontSize:14,fontWeight:700,color:rObj.color}}>{fmt(pi)}</span>
                     </div>
-                    <div style={{marginTop:6,fontSize:10,color:"#3a5060"}}>
-                      Annual: {fmt(total*12)}
+                    {/* P&I + fees */}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",
+                      borderTop:"1px solid #1e3040",paddingTop:6,marginTop:4}}>
+                      <span style={{fontSize:10,color:"#4a6a80"}}>+ Fees</span>
+                      <span style={{fontSize:16,fontWeight:800,color:"#f0ebe3"}}>{fmt(feesOnly)}</span>
                     </div>
+                    {/* All-in */}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",
+                      background:"#0a1218",borderRadius:6,padding:"6px 8px",marginTop:6}}>
+                      <span style={{fontSize:10,color:"#f0d890",fontWeight:600}}>All-in*</span>
+                      <span style={{fontSize:17,fontWeight:900,color:"#f0d890"}}>{fmt(allIn)}</span>
+                    </div>
+                    <div style={{marginTop:6,fontSize:9,color:"#2a4050"}}>Annual (all-in): {fmt(allIn*12)}</div>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Down payment sensitivity */}
-          <div style={{marginTop:16}}>
-            <div style={{fontSize:10,color:"#3a5a70",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8}}>Down Payment Sensitivity — @ {allRates[0]?.label}</div>
+          {/* ── ROW 3: Down payment sensitivity ── */}
+          <div>
+            <div style={{fontSize:9,color:"#3a5a70",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8,fontWeight:700}}>
+              Down Payment Sensitivity — @ {allRates[0]?.label}
+            </div>
             <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
               {[10,15,20,25].map(dp=>{
-                const pi    = pmt(eff, allRates[0]?.rate||0.06, dp);
-                const total = pi+fixed;
-                const down  = eff*(dp/100);
+                const pi     = pmt(eff, allRates[0]?.rate||0.06, dp);
+                const feesOnly = pi+fixed;
+                const allIn  = pi+fixed+taxMo+INS_MO;
+                const down   = eff*(dp/100);
+                const isCur  = dp===downPct;
                 return (
-                  <div key={dp} style={{background:"#0a1620",border:`1px solid ${dp===downPct?"#2a7de1":"#1e3040"}`,
-                    borderRadius:8,padding:"10px 14px",minWidth:130,
-                    outline:dp===downPct?"1px solid #2a7de155":"none"}}>
-                    <div style={{fontSize:10,color:dp===downPct?"#59c0f0":"#3a5a70",fontWeight:700,marginBottom:4}}>{dp}% down</div>
-                    <div style={{fontSize:11,color:"#4a6a80",marginBottom:1}}>Down: <span style={{color:"#9c70c0",fontWeight:700}}>{fmt(down)}</span></div>
-                    <div style={{fontSize:11,color:"#4a6a80",marginBottom:1}}>P&amp;I: <span style={{color:FIXED_COLORS[0]}}>{fmt(pi)}</span></div>
-                    <div style={{fontSize:13,fontWeight:800,color:"#f0ebe3",marginTop:4}}>{fmt(total)} /mo</div>
+                  <div key={dp} style={{background:"#0a1620",
+                    border:`1px solid ${isCur?"#2a7de1":"#1e3040"}`,
+                    borderRadius:8,padding:"10px 14px",minWidth:140}}>
+                    <div style={{fontSize:10,color:isCur?"#59c0f0":"#3a5a70",fontWeight:700,marginBottom:5}}>{dp}% down {isCur&&"← current"}</div>
+                    <div style={{fontSize:10,color:"#4a6a80"}}>Down pmt: <span style={{color:"#9c70c0",fontWeight:700}}>{fmt(down)}</span></div>
+                    <div style={{fontSize:10,color:"#4a6a80",marginTop:2}}>P&amp;I: <span style={{color:FIXED_COLORS[0],fontWeight:600}}>{fmt(pi)}</span></div>
+                    <div style={{fontSize:10,color:"#4a6a80",marginTop:2}}>+ Fees: <span style={{color:"#c0c8d0",fontWeight:600}}>{fmt(feesOnly)}</span></div>
+                    <div style={{fontSize:13,fontWeight:800,color:"#f0d890",marginTop:6,borderTop:"1px solid #1e3040",paddingTop:5}}>All-in: {fmt(allIn)}/mo</div>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          <div style={{marginTop:12,fontSize:10,color:"#2a4050",fontStyle:"italic"}}>
-            * Estimates only. Does not include property taxes (~$400–700/mo) or homeowner's + flood insurance (~$250–500/mo).
+          <div style={{marginTop:10,fontSize:10,color:"#2a4050",fontStyle:"italic"}}>
+            * All-in = P&amp;I + all fees ({fmt(fixed)}/mo) + est. property tax ({fmt(taxMo)}/mo @ {propTaxRate}%) + est. insurance ({fmt(INS_MO)}/mo). Adjust tax rate in header controls.
           </div>
         </div>
       </td>
@@ -256,6 +273,7 @@ function App() {
   const [sortDir,      setSortDir]      = useState("asc");
   const [hlRate,       setHlRate]       = useState("r0");
   const [expandedLot,  setExpandedLot]  = useState(null);
+  const [propTaxRate,  setPropTaxRate]  = useState(1.1); // % of assessed value annually — Manatee County ~1.0–1.2%
 
   // Live rate
   const [currentRate,  setCurrentRate]  = useState(null);
@@ -514,6 +532,19 @@ function App() {
                 background:hlRate==="custom"?"#0a1e30":"#101c28",
                 color:hlRate==="custom"?CUSTOM_COLOR:"#4a7080",borderLeft:"1px solid #1e3040"}}>Use</button>
             </div>
+
+            <div style={{width:1,height:22,background:"#1e3040",margin:"0 2px"}}/>
+
+            {/* Property tax rate */}
+            <span style={{fontSize:10,color:"#3a5a70",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em"}}>Prop Tax:</span>
+            <div style={{display:"flex",alignItems:"center",gap:0,borderRadius:7,overflow:"hidden",border:"1px solid #2a3a50"}}>
+              <input type="number" min="0.5" max="3" step="0.05" value={propTaxRate}
+                onChange={e=>{ const n=parseFloat(e.target.value); if(!isNaN(n)&&n>0) setPropTaxRate(n); }}
+                style={{width:52,padding:"5px 6px",background:"#101c28",color:"#f0d890",border:"none",
+                  fontSize:13,fontWeight:700,outline:"none",textAlign:"center"}}/>
+              <span style={{padding:"5px 8px 5px 2px",background:"#101c28",color:"#6a7a50",fontSize:12}}>%/yr</span>
+            </div>
+            <span style={{fontSize:10,color:"#2a4a30"}}>shown in row detail</span>
           </div>
 
           {/* Rate status line */}
@@ -640,9 +671,9 @@ function App() {
                     </div>:<span style={{color:"#1e3040"}}>—</span>}
                   </td>
                   <td style={{padding:"10px 11px",textAlign:"right",borderLeft:"1px solid #1e3040",
-                    color:isGolf?"#5de07a":"#59c8f0",fontWeight:700,whiteSpace:"nowrap",fontSize:11,
-                    title:isGolf?`Base $${FEE_BASE_MO} + Landscape $${FEE_LANDSCAPE_MO} + Golf $${FEE_GOLF_MO}`:`Base $${FEE_BASE_MO} + Landscape $${FEE_LANDSCAPE_MO}`}}>
-                    {fmt(FEE_BASE_MO+FEE_LANDSCAPE_MO+(isGolf?FEE_GOLF_MO:0))}
+                    color:isGolf?"#5de07a":"#59c8f0",fontWeight:700,whiteSpace:"nowrap",fontSize:11}}>
+                    <div>{fmt(FEE_BASE_MO+FEE_LANDSCAPE_MO+(isGolf?FEE_GOLF_MO:0))}</div>
+                    <div style={{fontSize:9,color:"#3a5a70",marginTop:1}}>{isGolf?"base+land+golf":"base+land"}</div>
                   </td>
                   <td style={{padding:"10px 11px",textAlign:"right",color:"#d47820",fontWeight:500,whiteSpace:"nowrap",fontSize:11}}>{fmt(FEE_CDD_MO)}</td>
                   <td style={{padding:"10px 11px",textAlign:"right",color:"#9c70c0",fontWeight:500,whiteSpace:"nowrap",fontSize:11}}>{fmt(FEE_FB_MO)}</td>
@@ -660,7 +691,7 @@ function App() {
                     ];
                   })}
                 </tr>,
-                isOpen&&<ExpandedRow key={lot.lot+"-detail"} lot={lot} allRates={allRates} downPct={downPct} colCount={totalCols}/>
+                isOpen&&<ExpandedRow key={lot.lot+"-detail"} lot={lot} allRates={allRates} downPct={downPct} colCount={totalCols} propTaxRate={propTaxRate}/>
               ];
             })}
           </tbody>
