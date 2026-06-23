@@ -14,39 +14,41 @@
   ::-webkit-scrollbar-track{background:#0c1620}
   ::-webkit-scrollbar-thumb{background:#1e3040;border-radius:3px}
   button{cursor:pointer;transition:all 0.15s}
-  button:hover{filter:brightness(1.15)}
+  button:hover{filter:brightness(1.2)}
   select{appearance:none;-webkit-appearance:none}
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button{opacity:1}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+  .fetching{animation:pulse 1.2s ease-in-out infinite}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useMemo } = React;
+const { useState, useMemo, useEffect, useCallback } = React;
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
 const RAW_LOTS = [
-  // 45' Golf  HOA $735/mo
-  { lot:"8099",  model:"Arezzo",   elevType:"Coastal A", extColor:"54",  floorPlan:"Concerto 4.0",   address:"3320 Porto Lane",    retail:710704,  promo:574704,  completion:"June/July",  lotType:"Golf",   hasPool:false },
-  { lot:"2258",  model:"Arezzo",   elevType:"Med A",     extColor:"16B", floorPlan:"Concerto 4.0",   address:"14541 Derna Terr",   retail:702569,  promo:549569,  completion:"June/July",  lotType:"Golf",   hasPool:false },
-  { lot:"8149",  model:"Arezzo",   elevType:"Coastal A", extColor:"52",  floorPlan:"Largo 4.0",      address:"3309 Porto Lane",    retail:734919,  promo:624919,  completion:"June/July",  lotType:"Golf",   hasPool:false },
-  { lot:"8100",  model:"Arezzo",   elevType:"Med B",     extColor:"9A",  floorPlan:"Concerto 4.0",   address:"3316 Porto Lane",    retail:707014,  promo:599014,  completion:"June/July",  lotType:"Golf",   hasPool:false },
-  { lot:"2251",  model:"Arezzo",   elevType:"Med A",     extColor:"16B", floorPlan:"Concerto 4.0",   address:"14513 Derna Terr",   retail:711869,  promo:null,    completion:"Aug/Sept",   lotType:"Golf",   hasPool:false },
-  { lot:"2250",  model:"Arezzo",   elevType:"Coastal A", extColor:"54",  floorPlan:"Concerto 4.0",   address:"14509 Derna Terr",   retail:714329,  promo:null,    completion:"Aug/Sept",   lotType:"Golf",   hasPool:false },
-  { lot:"2257",  model:"Arezzo",   elevType:"Coastal A", extColor:"51",  floorPlan:"Lyric 4.0",      address:"14537 Derna Terr",   retail:708829,  promo:null,    completion:"Aug/Sept",   lotType:"Golf",   hasPool:false },
-  { lot:"2252",  model:"Arezzo",   elevType:"Coastal A", extColor:"53",  floorPlan:"Concerto 4.0",   address:"14517 Derna Terr",   retail:713619,  promo:null,    completion:"Aug/Sept",   lotType:"Golf",   hasPool:false },
-  { lot:"2253",  model:"Arezzo",   elevType:"Med B",     extColor:"14A", floorPlan:"Concerto 4.0",   address:"14521 Derna Terr",   retail:713614,  promo:null,    completion:"Sept/Oct",   lotType:"Golf",   hasPool:false },
-  // 52' Resort  HOA $469/mo
-  { lot:"8031",  model:"Farnese",  elevType:"Med D",     extColor:"16B", floorPlan:"Concerto 4.0",   address:"3306 Vicenza Ct",    retail:769024,  promo:674024,  completion:"READY NOW!", lotType:"Resort", hasPool:false },
-  { lot:"9068",  model:"Lazio",    elevType:"Coastal C", extColor:"52",  floorPlan:"Concerto 4.0",   address:"3222 Alba Circle",   retail:1036409, promo:899409,  completion:"June/July",  lotType:"Resort", hasPool:true  },
-  { lot:"8032",  model:"Lazio",    elevType:"Med B",     extColor:"16B", floorPlan:"Concerto 4.0",   address:"3302 Vicenza Ct",    retail:1039594, promo:874594,  completion:"June/July",  lotType:"Resort", hasPool:true  },
-  { lot:"8033",  model:"Lazio",    elevType:"Coastal B", extColor:"51",  floorPlan:"Symphony 4.0",   address:"3220 Vicenza Ct",    retail:873604,  promo:774604,  completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
-  { lot:"8034",  model:"Lazio",    elevType:"Coastal C", extColor:"53",  floorPlan:"Overture 4.0",   address:"3216 Vicenza Ct",    retail:890844,  promo:854844,  completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
-  { lot:"8035",  model:"Lazio",    elevType:"Med B",     extColor:"16B", floorPlan:"Concerto 4.0",   address:"3212 Vicenza Ct",    retail:1044129, promo:999129,  completion:"Aug/Sept",   lotType:"Resort", hasPool:true  },
-  { lot:"8036",  model:"Farnese",  elevType:"Coastal A", extColor:"53",  floorPlan:"Concerto 4.0",   address:"3208 Vicenza Ct",    retail:842184,  promo:799184,  completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
-  { lot:"8037",  model:"Lazio",    elevType:"Med B",     extColor:"16B", floorPlan:"Manuscript 4.0", address:"3204 Vicenza Ct",    retail:880709,  promo:null,    completion:"Sept/Oct",   lotType:"Resort", hasPool:false },
-  { lot:"8038",  model:"Lazio",    elevType:"Coastal C", extColor:"52",  floorPlan:"Concerto 4.0",   address:"3122 Vicenza Ct",    retail:1041889, promo:null,    completion:"Oct/Nov",    lotType:"Resort", hasPool:true  },
-  { lot:"8040",  model:"Lazio",    elevType:"Coastal C", extColor:"55",  floorPlan:"Concerto 4.0",   address:"3114 Vicenza Ct",    retail:885974,  promo:null,    completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
-  { lot:"8039",  model:"Lazio",    elevType:"Med A",     extColor:"15A", floorPlan:"Overture 4.0",   address:"3118 Vicenza Ct",    retail:869159,  promo:null,    completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
+  { lot:"8099",  model:"Arezzo",  elevType:"Coastal A", extColor:"54",  floorPlan:"Concerto 4.0",   address:"3320 Porto Lane",  retail:710704,  promo:574704,  completion:"June/July",  lotType:"Golf",   hasPool:false },
+  { lot:"2258",  model:"Arezzo",  elevType:"Med A",     extColor:"16B", floorPlan:"Concerto 4.0",   address:"14541 Derna Terr", retail:702569,  promo:549569,  completion:"June/July",  lotType:"Golf",   hasPool:false },
+  { lot:"8149",  model:"Arezzo",  elevType:"Coastal A", extColor:"52",  floorPlan:"Largo 4.0",      address:"3309 Porto Lane",  retail:734919,  promo:624919,  completion:"June/July",  lotType:"Golf",   hasPool:false },
+  { lot:"8100",  model:"Arezzo",  elevType:"Med B",     extColor:"9A",  floorPlan:"Concerto 4.0",   address:"3316 Porto Lane",  retail:707014,  promo:599014,  completion:"June/July",  lotType:"Golf",   hasPool:false },
+  { lot:"2251",  model:"Arezzo",  elevType:"Med A",     extColor:"16B", floorPlan:"Concerto 4.0",   address:"14513 Derna Terr", retail:711869,  promo:null,    completion:"Aug/Sept",   lotType:"Golf",   hasPool:false },
+  { lot:"2250",  model:"Arezzo",  elevType:"Coastal A", extColor:"54",  floorPlan:"Concerto 4.0",   address:"14509 Derna Terr", retail:714329,  promo:null,    completion:"Aug/Sept",   lotType:"Golf",   hasPool:false },
+  { lot:"2257",  model:"Arezzo",  elevType:"Coastal A", extColor:"51",  floorPlan:"Lyric 4.0",      address:"14537 Derna Terr", retail:708829,  promo:null,    completion:"Aug/Sept",   lotType:"Golf",   hasPool:false },
+  { lot:"2252",  model:"Arezzo",  elevType:"Coastal A", extColor:"53",  floorPlan:"Concerto 4.0",   address:"14517 Derna Terr", retail:713619,  promo:null,    completion:"Aug/Sept",   lotType:"Golf",   hasPool:false },
+  { lot:"2253",  model:"Arezzo",  elevType:"Med B",     extColor:"14A", floorPlan:"Concerto 4.0",   address:"14521 Derna Terr", retail:713614,  promo:null,    completion:"Sept/Oct",   lotType:"Golf",   hasPool:false },
+  { lot:"8031",  model:"Farnese", elevType:"Med D",     extColor:"16B", floorPlan:"Concerto 4.0",   address:"3306 Vicenza Ct",  retail:769024,  promo:674024,  completion:"READY NOW!", lotType:"Resort", hasPool:false },
+  { lot:"9068",  model:"Lazio",   elevType:"Coastal C", extColor:"52",  floorPlan:"Concerto 4.0",   address:"3222 Alba Circle", retail:1036409, promo:899409,  completion:"June/July",  lotType:"Resort", hasPool:true  },
+  { lot:"8032",  model:"Lazio",   elevType:"Med B",     extColor:"16B", floorPlan:"Concerto 4.0",   address:"3302 Vicenza Ct",  retail:1039594, promo:874594,  completion:"June/July",  lotType:"Resort", hasPool:true  },
+  { lot:"8033",  model:"Lazio",   elevType:"Coastal B", extColor:"51",  floorPlan:"Symphony 4.0",   address:"3220 Vicenza Ct",  retail:873604,  promo:774604,  completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
+  { lot:"8034",  model:"Lazio",   elevType:"Coastal C", extColor:"53",  floorPlan:"Overture 4.0",   address:"3216 Vicenza Ct",  retail:890844,  promo:854844,  completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
+  { lot:"8035",  model:"Lazio",   elevType:"Med B",     extColor:"16B", floorPlan:"Concerto 4.0",   address:"3212 Vicenza Ct",  retail:1044129, promo:999129,  completion:"Aug/Sept",   lotType:"Resort", hasPool:true  },
+  { lot:"8036",  model:"Farnese", elevType:"Coastal A", extColor:"53",  floorPlan:"Concerto 4.0",   address:"3208 Vicenza Ct",  retail:842184,  promo:799184,  completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
+  { lot:"8037",  model:"Lazio",   elevType:"Med B",     extColor:"16B", floorPlan:"Manuscript 4.0", address:"3204 Vicenza Ct",  retail:880709,  promo:null,    completion:"Sept/Oct",   lotType:"Resort", hasPool:false },
+  { lot:"8038",  model:"Lazio",   elevType:"Coastal C", extColor:"52",  floorPlan:"Concerto 4.0",   address:"3122 Vicenza Ct",  retail:1041889, promo:null,    completion:"Oct/Nov",    lotType:"Resort", hasPool:true  },
+  { lot:"8040",  model:"Lazio",   elevType:"Coastal C", extColor:"55",  floorPlan:"Concerto 4.0",   address:"3114 Vicenza Ct",  retail:885974,  promo:null,    completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
+  { lot:"8039",  model:"Lazio",   elevType:"Med A",     extColor:"15A", floorPlan:"Overture 4.0",   address:"3118 Vicenza Ct",  retail:869159,  promo:null,    completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
 ];
 
 // ─── FEES ────────────────────────────────────────────────────────────────────
@@ -54,69 +56,127 @@ const GOLF_HOA_MO   = 735;
 const RESORT_HOA_MO = 469;
 const CDD_MO        = 163;
 const FB_MO         = 83;
-const RATES         = [0.06, 0.055, 0.05];
-const RATE_LABELS   = ["6.0%", "5.5%", "5.0%"];
-const RATE_COLORS   = ["#e05c5c", "#d4893a", "#3cba6e"];
-const COMPLETION_ORDER = { "READY NOW!":0, "June/July":1, "Aug/Sept":2, "Sept/Oct":3, "Oct/Nov":4 };
+
+// Fixed comparison rates
+const FIXED_RATES  = [0.06, 0.055, 0.05];
+const FIXED_LABELS = ["6.0%", "5.5%", "5.0%"];
+const FIXED_COLORS = ["#e05c5c", "#d4893a", "#3cba6e"];
+const CURRENT_COLOR = "#a78bfa";  // purple for "live" rate
+const CUSTOM_COLOR  = "#38bdf8";  // sky blue for custom
+
+const COMPLETION_ORDER = { "READY NOW!":0,"June/July":1,"Aug/Sept":2,"Sept/Oct":3,"Oct/Nov":4 };
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function pmt(price, rate, downPct, years=30) {
-  const p = price * (1 - downPct/100);
-  const r = rate/12, n = years*12;
-  return (p * r * Math.pow(1+r,n)) / (Math.pow(1+r,n)-1);
+  const p = price*(1-downPct/100), r=rate/12, n=years*12;
+  return (p*r*Math.pow(1+r,n))/(Math.pow(1+r,n)-1);
 }
-const fmt  = n => n==null ? "—" : "$"+Math.round(n).toLocaleString();
-const fmtK = n => n==null ? "—" : "$"+Math.round(n/1000)+"K";
+const fmt  = n => n==null?"—":"$"+Math.round(n).toLocaleString();
+const fmtK = n => n==null?"—":"$"+Math.round(n/1000)+"K";
+const fmtR = r => (r*100).toFixed(2)+"%";
 
 // ─── SUB-COMPONENTS ──────────────────────────────────────────────────────────
 function Chip({label,color,bg,border}) {
   return <span style={{display:"inline-block",fontSize:10,fontWeight:700,letterSpacing:"0.05em",
     padding:"2px 6px",borderRadius:4,background:bg,color,border:`1px solid ${border}`,whiteSpace:"nowrap"}}>
-    {label}
-  </span>;
+    {label}</span>;
 }
-
 function SortIcon({dir}) {
-  return <span style={{marginLeft:4,opacity:dir?1:0.3,fontSize:9}}>
-    {dir==="asc"?"▲":dir==="desc"?"▼":"⇅"}
-  </span>;
+  return <span style={{marginLeft:3,opacity:dir?1:0.3,fontSize:9}}>
+    {dir==="asc"?"▲":dir==="desc"?"▼":"⇅"}</span>;
 }
-
 function StatCard({label,value,sub,color}) {
-  return <div style={{background:"#101c2a",border:"1px solid #1e3040",borderRadius:10,padding:"12px 16px",minWidth:130}}>
-    <div style={{fontSize:10,color:"#4a7a9b",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4}}>{label}</div>
-    <div style={{fontSize:20,fontWeight:800,color:color||"#f0ebe3",letterSpacing:"-0.5px"}}>{value}</div>
-    {sub && <div style={{fontSize:10,color:"#3a5a70",marginTop:2}}>{sub}</div>}
+  return <div style={{background:"#101c2a",border:"1px solid #1e3040",borderRadius:10,padding:"11px 15px",minWidth:125}}>
+    <div style={{fontSize:10,color:"#4a7a9b",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3}}>{label}</div>
+    <div style={{fontSize:19,fontWeight:800,color:color||"#f0ebe3",letterSpacing:"-0.5px"}}>{value}</div>
+    {sub&&<div style={{fontSize:10,color:"#3a5a70",marginTop:2}}>{sub}</div>}
   </div>;
 }
 
-// ─── MAIN APP ────────────────────────────────────────────────────────────────
+// ─── MAIN ────────────────────────────────────────────────────────────────────
 function App() {
-  const [lotType,      setLotType]      = useState("All");
-  const [modelF,       setModelF]       = useState("All");
-  const [poolF,        setPoolF]        = useState("All");
-  const [promoF,       setPromoF]       = useState("All");
-  const [completionF,  setCompletionF]  = useState("All");
-  const [downPct,      setDownPct]      = useState(20);
-  const [sortCol,      setSortCol]      = useState("completion");
-  const [sortDir,      setSortDir]      = useState("asc");
-  const [hlRate,       setHlRate]       = useState(0.06);
+  // Filters
+  const [lotType,     setLotType]     = useState("All");
+  const [modelF,      setModelF]      = useState("All");
+  const [poolF,       setPoolF]       = useState("All");
+  const [promoF,      setPromoF]      = useState("All");
+  const [completionF, setCompletionF] = useState("All");
+  const [downPct,     setDownPct]     = useState(20);
+  const [sortCol,     setSortCol]     = useState("completion");
+  const [sortDir,     setSortDir]     = useState("asc");
+  const [hlRate,      setHlRate]      = useState("r0"); // "r0","r1","r2","current","custom"
 
-  const models      = ["All",...Array.from(new Set(RAW_LOTS.map(l=>l.model))).sort()];
-  const completions = ["All",...Object.keys(COMPLETION_ORDER)];
+  // Live rate state
+  const [currentRate,     setCurrentRate]     = useState(null);   // fetched 30yr fixed
+  const [rateStatus,      setRateStatus]      = useState("idle"); // idle|fetching|ok|error
+  const [rateSource,      setRateSource]      = useState("");
+  const [rateDate,        setRateDate]        = useState("");
 
+  // Custom rate state
+  const [customRateInput, setCustomRateInput] = useState("6.75");
+  const [customRate,      setCustomRate]      = useState(0.0675);
+
+  // ── Fetch current 30-yr fixed rate from FRED (St. Louis Fed) ──────────────
+  // Series: MORTGAGE30US  — updated weekly, no API key needed for recent obs.
+  const fetchCurrentRate = useCallback(async () => {
+    setRateStatus("fetching");
+    try {
+      // FRED public API, no key required for this series
+      const url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US";
+      const res  = await fetch(url);
+      const text = await res.text();
+      const lines = text.trim().split("\n").filter(l=>l&&!l.startsWith("DATE"));
+      const last  = lines[lines.length-1].split(",");
+      const date  = last[0];
+      const rate  = parseFloat(last[1]);
+      if(isNaN(rate)) throw new Error("parse fail");
+      setCurrentRate(rate/100);
+      setRateDate(date);
+      setRateSource("FRED / Freddie Mac");
+      setRateStatus("ok");
+    } catch(e) {
+      // Fallback: try another public source
+      try {
+        const res2  = await fetch("https://api.fiscaldata.treasury.gov/services/api/v1/accounting/od/avg_interest_rates?fields=record_date,avg_interest_rate_amt,security_desc&filter=security_desc:eq:Treasury%20Bonds&sort=-record_date&limit=1");
+        // Treasury bonds aren't mortgage rates — if FRED fails just show error
+        throw new Error("no fallback");
+      } catch {
+        setRateStatus("error");
+      }
+    }
+  }, []);
+
+  useEffect(() => { fetchCurrentRate(); }, [fetchCurrentRate]);
+
+  // ── Build dynamic rates array ─────────────────────────────────────────────
+  // Always show: current (if loaded), then 6%, 5.5%, 5%, then custom
+  const allRates = useMemo(() => {
+    const base = FIXED_RATES.map((r,i)=>({ key:`r${i}`, rate:r, label:FIXED_LABELS[i], color:FIXED_COLORS[i], isFixed:true }));
+    const custom = { key:"custom", rate:customRate, label:`${(customRate*100).toFixed(2)}% (custom)`, color:CUSTOM_COLOR, isCustom:true };
+    if(currentRate) {
+      const cur = { key:"current", rate:currentRate, label:`${(currentRate*100).toFixed(2)}% (live)`, color:CURRENT_COLOR, isCurrent:true };
+      return [cur, ...base, custom];
+    }
+    return [...base, custom];
+  }, [currentRate, customRate]);
+
+  const activeRateObj = allRates.find(r=>r.key===hlRate) || allRates[0];
+
+  // ── Filtering ─────────────────────────────────────────────────────────────
   const filtered = useMemo(()=>RAW_LOTS.filter(l=>{
-    if(lotType!=="All" && l.lotType!==lotType) return false;
-    if(modelF!=="All"  && l.model!==modelF)    return false;
-    if(poolF==="Pool"     && !l.hasPool)        return false;
-    if(poolF==="No Pool"  &&  l.hasPool)        return false;
-    if(promoF==="Promo"   && !l.promo)          return false;
-    if(completionF!=="All"&& l.completion!==completionF) return false;
+    if(lotType!=="All"      && l.lotType!==lotType)       return false;
+    if(modelF!=="All"       && l.model!==modelF)          return false;
+    if(poolF==="Pool"       && !l.hasPool)                return false;
+    if(poolF==="No Pool"    &&  l.hasPool)                return false;
+    if(promoF==="Promo"     && !l.promo)                  return false;
+    if(completionF!=="All"  && l.completion!==completionF)return false;
     return true;
   }),[lotType,modelF,poolF,promoF,completionF]);
 
+  // ── Sorting ───────────────────────────────────────────────────────────────
   const sorted = useMemo(()=>[...filtered].sort((a,b)=>{
     const effA=a.promo??a.retail, effB=b.promo??b.retail;
+    const ar=activeRateObj.rate;
     let av,bv;
     switch(sortCol){
       case "lot":        av=a.lot;    bv=b.lot;    break;
@@ -125,28 +185,31 @@ function App() {
       case "promo":      av=a.promo??a.retail; bv=b.promo??b.retail; break;
       case "savings":    av=a.promo?a.retail-a.promo:0; bv=b.promo?b.retail-b.promo:0; break;
       case "total":
-        av=pmt(effA,hlRate,downPct)+(a.lotType==="Golf"?GOLF_HOA_MO:RESORT_HOA_MO)+CDD_MO+FB_MO;
-        bv=pmt(effB,hlRate,downPct)+(b.lotType==="Golf"?GOLF_HOA_MO:RESORT_HOA_MO)+CDD_MO+FB_MO; break;
+        av=pmt(effA,ar,downPct)+(a.lotType==="Golf"?GOLF_HOA_MO:RESORT_HOA_MO)+CDD_MO+FB_MO;
+        bv=pmt(effB,ar,downPct)+(b.lotType==="Golf"?GOLF_HOA_MO:RESORT_HOA_MO)+CDD_MO+FB_MO; break;
       case "completion": av=COMPLETION_ORDER[a.completion]??99; bv=COMPLETION_ORDER[b.completion]??99; break;
       default: av=0; bv=0;
     }
     if(av<bv) return sortDir==="asc"?-1:1;
     if(av>bv) return sortDir==="asc"?1:-1;
     return 0;
-  }),[filtered,sortCol,sortDir,hlRate,downPct]);
+  }),[filtered,sortCol,sortDir,activeRateObj,downPct]);
 
   function toggleSort(col){
     if(sortCol===col) setSortDir(d=>d==="asc"?"desc":"asc");
     else{setSortCol(col);setSortDir("asc");}
   }
 
-  const promoLots   = sorted.filter(l=>l.promo);
-  const avgSavings  = promoLots.length?promoLots.reduce((s,l)=>s+(l.retail-l.promo),0)/promoLots.length:0;
-  const lowestTotal = sorted.length?Math.min(...sorted.map(l=>{
+  // ── Stats ─────────────────────────────────────────────────────────────────
+  const promoLots  = sorted.filter(l=>l.promo);
+  const avgSavings = promoLots.length?promoLots.reduce((s,l)=>s+(l.retail-l.promo),0)/promoLots.length:0;
+  const lowestTotal= sorted.length?Math.min(...sorted.map(l=>{
     const eff=l.promo??l.retail;
-    return pmt(eff,hlRate,downPct)+(l.lotType==="Golf"?GOLF_HOA_MO:RESORT_HOA_MO)+CDD_MO+FB_MO;
+    return pmt(eff,activeRateObj.rate,downPct)+(l.lotType==="Golf"?GOLF_HOA_MO:RESORT_HOA_MO)+CDD_MO+FB_MO;
   })):0;
 
+  const models     = ["All",...Array.from(new Set(RAW_LOTS.map(l=>l.model))).sort()];
+  const completions= ["All",...Object.keys(COMPLETION_ORDER)];
   const cc = c=>c==="READY NOW!"?"#3cba6e":c==="June/July"?"#e0c060":c==="Aug/Sept"?"#7a9bb5":"#5a7080";
 
   const TH = ({col,children,right})=>(
@@ -158,59 +221,57 @@ function App() {
     }}>{children}<SortIcon dir={sortCol===col?sortDir:null}/></th>
   );
 
-  const btnBase = {fontSize:12,fontWeight:600,border:"none",padding:"6px 12px"};
+  const btnBase={fontSize:12,fontWeight:600,border:"none",padding:"6px 12px"};
 
-  const FilterGroup = ({options,active,setActive,activeStyle,inactiveStyle})=>(
-    <div style={{display:"flex",borderRadius:7,overflow:"hidden",border:"1px solid #1e3040"}}>
-      {options.map(([val,label])=>(
-        <button key={val} onClick={()=>setActive(val)} style={{
-          ...btnBase,
-          background:active===val?(activeStyle.bg||"#2060a0"):"#101c28",
-          color:active===val?(activeStyle.color||"#fff"):"#5a8aaa"
-        }}>{label}</button>
-      ))}
-    </div>
-  );
+  // ── How many columns does the table have? ─────────────────────────────────
+  // 5 property + 4 pricing + 3 fees + 2 per rate
+  const totalCols = 12 + allRates.length*2;
 
   return (
     <div style={{fontFamily:"'Inter',system-ui,sans-serif",background:"#0c1620",minHeight:"100vh",color:"#e0d8cc"}}>
 
-      {/* HEADER */}
-      <div style={{background:"linear-gradient(160deg,#142030 0%,#0c1620 100%)",borderBottom:"1px solid #1e3040",padding:"22px 20px 16px"}}>
-        <div style={{maxWidth:1600,margin:"0 auto"}}>
+      {/* ── HEADER ── */}
+      <div style={{background:"linear-gradient(160deg,#142030 0%,#0c1620 100%)",borderBottom:"1px solid #1e3040",padding:"20px 20px 14px"}}>
+        <div style={{maxWidth:1700,margin:"0 auto"}}>
           <div style={{display:"flex",alignItems:"baseline",gap:14,flexWrap:"wrap",marginBottom:4}}>
-            <h1 style={{margin:0,fontSize:22,fontWeight:800,letterSpacing:"-0.5px",color:"#f0ebe3"}}>Esplanade Azario</h1>
+            <h1 style={{margin:0,fontSize:21,fontWeight:800,letterSpacing:"-0.5px",color:"#f0ebe3"}}>Esplanade Azario</h1>
             <span style={{fontSize:11,color:"#4a7a9b",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:600}}>Lakewood Ranch · Quick Move-In Analysis</span>
           </div>
-          <p style={{margin:"0 0 14px",color:"#3a6070",fontSize:11}}>
+          <p style={{margin:"0 0 12px",color:"#3a6070",fontSize:11}}>
             Total monthly cost · P&amp;I + HOA + CDD + min. F&amp;B · taxes &amp; insurance not included
           </p>
 
           {/* FILTER ROW 1 */}
           <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:8,alignItems:"center"}}>
-            <FilterGroup
-              options={[["All","All Lots"],["Golf","45' Golf"],["Resort","52' Resort"]]}
-              active={lotType} setActive={setLotType}
-              activeStyle={{bg:"#2060a0",color:"#fff"}} />
-
+            {/* Lot type */}
             <div style={{display:"flex",borderRadius:7,overflow:"hidden",border:"1px solid #1e3040"}}>
-              {models.map(m=>(
-                <button key={m} onClick={()=>setModelF(m)} style={{
-                  ...btnBase,background:modelF===m?"#304a20":"#101c28",
-                  color:modelF===m?"#7de060":"#5a8aaa"}}>{m}</button>
+              {[["All","All Lots"],["Golf","45' Golf"],["Resort","52' Resort"]].map(([v,label])=>(
+                <button key={v} onClick={()=>setLotType(v)} style={{...btnBase,
+                  background:lotType===v?"#2060a0":"#101c28",color:lotType===v?"#fff":"#5a8aaa"}}>{label}</button>
               ))}
             </div>
-
-            <FilterGroup
-              options={[["All","All"],["Pool","🏊 Pool"],["No Pool","No Pool"]]}
-              active={poolF} setActive={setPoolF}
-              activeStyle={{bg:"#1a3040",color:"#59c8f0"}} />
-
-            <FilterGroup
-              options={[["All","All Pricing"],["Promo","🏷 Promo Only"]]}
-              active={promoF} setActive={setPromoF}
-              activeStyle={{bg:"#401a1a",color:"#e05c5c"}} />
-
+            {/* Model */}
+            <div style={{display:"flex",borderRadius:7,overflow:"hidden",border:"1px solid #1e3040"}}>
+              {models.map(m=>(
+                <button key={m} onClick={()=>setModelF(m)} style={{...btnBase,
+                  background:modelF===m?"#304a20":"#101c28",color:modelF===m?"#7de060":"#5a8aaa"}}>{m}</button>
+              ))}
+            </div>
+            {/* Pool */}
+            <div style={{display:"flex",borderRadius:7,overflow:"hidden",border:"1px solid #1e3040"}}>
+              {[["All","All"],["Pool","🏊 Pool"],["No Pool","No Pool"]].map(([v,label])=>(
+                <button key={v} onClick={()=>setPoolF(v)} style={{...btnBase,
+                  background:poolF===v?"#1a3040":"#101c28",color:poolF===v?"#59c8f0":"#5a8aaa"}}>{label}</button>
+              ))}
+            </div>
+            {/* Promo */}
+            <div style={{display:"flex",borderRadius:7,overflow:"hidden",border:"1px solid #1e3040"}}>
+              {[["All","All Pricing"],["Promo","🏷 Promo Only"]].map(([v,label])=>(
+                <button key={v} onClick={()=>setPromoF(v)} style={{...btnBase,
+                  background:promoF===v?"#401a1a":"#101c28",color:promoF===v?"#e05c5c":"#5a8aaa"}}>{label}</button>
+              ))}
+            </div>
+            {/* Completion */}
             <select value={completionF} onChange={e=>setCompletionF(e.target.value)} style={{
               padding:"6px 10px",fontSize:12,fontWeight:600,background:"#101c28",
               color:"#7a9bb5",border:"1px solid #1e3040",borderRadius:7,cursor:"pointer",outline:"none"}}>
@@ -218,57 +279,125 @@ function App() {
             </select>
           </div>
 
-          {/* FILTER ROW 2 */}
-          <div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center"}}>
+          {/* FILTER ROW 2: down + rate controls */}
+          <div style={{display:"flex",flexWrap:"wrap",gap:10,alignItems:"center"}}>
+            {/* Down payment */}
             <span style={{fontSize:10,color:"#3a5a70",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em"}}>Down:</span>
             <div style={{display:"flex",borderRadius:7,overflow:"hidden",border:"1px solid #1e3040"}}>
               {[10,15,20,25].map(p=>(
-                <button key={p} onClick={()=>setDownPct(p)} style={{
-                  ...btnBase,padding:"5px 11px",fontWeight:700,
-                  background:downPct===p?"#1a3050":"#101c28",
-                  color:downPct===p?"#59c0f0":"#4a7080"}}>{p}%</button>
+                <button key={p} onClick={()=>setDownPct(p)} style={{...btnBase,padding:"5px 11px",fontWeight:700,
+                  background:downPct===p?"#1a3050":"#101c28",color:downPct===p?"#59c0f0":"#4a7080"}}>{p}%</button>
               ))}
             </div>
-            <span style={{fontSize:10,color:"#3a5a70",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",marginLeft:6}}>Highlight Rate:</span>
+
+            {/* Divider */}
+            <div style={{width:1,height:24,background:"#1e3040",margin:"0 4px"}}/>
+
+            {/* Rate highlight selector label */}
+            <span style={{fontSize:10,color:"#3a5a70",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em"}}>Highlight Rate:</span>
+
+            {/* Live rate button */}
+            <button onClick={()=>{ setHlRate("current"); if(rateStatus==="error") fetchCurrentRate(); }}
+              style={{...btnBase,padding:"5px 13px",fontWeight:700,borderRadius:7,
+                border:`1px solid ${CURRENT_COLOR}44`,
+                background:hlRate==="current"?"#1a1030":"#101c28",
+                color:hlRate==="current"?CURRENT_COLOR:"#5a6a7a",
+                minWidth:120,textAlign:"left",position:"relative"}}>
+              {rateStatus==="fetching"&&<span className="fetching" style={{marginRight:5}}>⟳</span>}
+              {rateStatus==="ok"&&<span style={{marginRight:5,fontSize:10}}>●</span>}
+              {rateStatus==="error"&&<span style={{marginRight:5,fontSize:10,color:"#e05c5c"}}>!</span>}
+              {rateStatus==="idle"&&<span style={{marginRight:5}}>⟳</span>}
+              {rateStatus==="ok"
+                ? <span>Live: <strong>{(currentRate*100).toFixed(2)}%</strong></span>
+                : rateStatus==="fetching"
+                  ? "Fetching…"
+                  : rateStatus==="error"
+                    ? <span style={{fontSize:11}}>Live (retry)</span>
+                    : "Live Rate"}
+            </button>
+
+            {/* Fixed rate buttons */}
             <div style={{display:"flex",borderRadius:7,overflow:"hidden",border:"1px solid #1e3040"}}>
-              {RATES.map((r,i)=>(
-                <button key={r} onClick={()=>setHlRate(r)} style={{
-                  ...btnBase,padding:"5px 12px",fontWeight:700,
-                  background:hlRate===r?"#1a1a0a":"#101c28",
-                  color:hlRate===r?RATE_COLORS[i]:"#4a7080"}}>{RATE_LABELS[i]}</button>
+              {FIXED_RATES.map((r,i)=>(
+                <button key={r} onClick={()=>setHlRate(`r${i}`)} style={{...btnBase,padding:"5px 12px",fontWeight:700,
+                  background:hlRate===`r${i}`?"#1a1a0a":"#101c28",
+                  color:hlRate===`r${i}`?FIXED_COLORS[i]:"#4a7080"}}>{FIXED_LABELS[i]}</button>
               ))}
+            </div>
+
+            {/* Custom rate input */}
+            <div style={{display:"flex",alignItems:"center",gap:0,borderRadius:7,overflow:"hidden",border:`1px solid ${hlRate==="custom"?CUSTOM_COLOR+"88":"#1e3040"}`}}>
+              <span style={{padding:"5px 8px",background:"#101c28",fontSize:10,color:"#4a7080",fontWeight:700,whiteSpace:"nowrap"}}>Custom:</span>
+              <input
+                type="number" min="1" max="15" step="0.05"
+                value={customRateInput}
+                onChange={e=>{
+                  const v=e.target.value;
+                  setCustomRateInput(v);
+                  const n=parseFloat(v);
+                  if(!isNaN(n)&&n>0.5&&n<20){ setCustomRate(n/100); }
+                }}
+                style={{width:62,padding:"5px 6px",background:"#101c28",color:CUSTOM_COLOR,border:"none",
+                  fontSize:13,fontWeight:700,outline:"none",textAlign:"center"}}
+              />
+              <span style={{padding:"5px 4px 5px 0",background:"#101c28",color:"#4a6070",fontSize:12}}>%</span>
+              <button onClick={()=>setHlRate("custom")} style={{...btnBase,padding:"5px 10px",fontWeight:700,
+                background:hlRate==="custom"?"#0a1e30":"#101c28",
+                color:hlRate==="custom"?CUSTOM_COLOR:"#4a7080",borderLeft:"1px solid #1e3040"}}>
+                Use
+              </button>
             </div>
           </div>
+
+          {/* Live rate attribution */}
+          {rateStatus==="ok"&&(
+            <div style={{marginTop:8,fontSize:10,color:"#2a4a5e"}}>
+              Live rate: <span style={{color:CURRENT_COLOR,fontWeight:700}}>{(currentRate*100).toFixed(2)}%</span> 30-yr fixed
+              &nbsp;·&nbsp;Source: {rateSource}
+              &nbsp;·&nbsp;Week of {rateDate}
+              &nbsp;·&nbsp;<button onClick={fetchCurrentRate} style={{...btnBase,padding:"0 4px",fontSize:10,background:"none",color:"#4a6a8a",textDecoration:"underline"}}>refresh</button>
+            </div>
+          )}
+          {rateStatus==="error"&&(
+            <div style={{marginTop:8,fontSize:10,color:"#e05c5c"}}>
+              ⚠ Could not fetch live rate (CORS or network). Enter a custom rate above.
+            </div>
+          )}
         </div>
       </div>
 
-      {/* STAT CARDS */}
-      <div style={{maxWidth:1600,margin:"0 auto",padding:"12px 20px 0"}}>
-        <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
-          <StatCard label="Lots Shown"     value={sorted.length}        sub={`of ${RAW_LOTS.length} total`} />
-          <StatCard label="Promo Available" value={promoLots.length}    sub="with active discount" color="#e05c5c" />
-          <StatCard label="Avg Savings"    value={fmtK(avgSavings)}      sub="off retail (promo lots)" color="#3cba6e" />
-          <StatCard label={`Lowest /mo @ ${RATE_LABELS[RATES.indexOf(hlRate)]}`}
-                    value={sorted.length?fmt(lowestTotal):"—"}           sub="P&I+HOA+CDD+F&B" color={RATE_COLORS[RATES.indexOf(hlRate)]} />
-          <StatCard label="Ready Now"      value={sorted.filter(l=>l.completion==="READY NOW!").length} sub="immediate delivery" color="#3cba6e" />
-          <StatCard label="With Pool"      value={sorted.filter(l=>l.hasPool).length} sub="lots w/ pool" color="#59c8f0" />
-          <StatCard label={`Down (${downPct}%)`}
-                    value={sorted.length?fmtK((sorted[0].promo??sorted[0].retail)*downPct/100):"—"}
-                    sub="on first listed lot" color="#9c7de0" />
+      {/* ── STAT CARDS ── */}
+      <div style={{maxWidth:1700,margin:"0 auto",padding:"12px 20px 0"}}>
+        <div style={{display:"flex",flexWrap:"wrap",gap:9}}>
+          <StatCard label="Lots Shown"      value={sorted.length}          sub={`of ${RAW_LOTS.length} total`} />
+          <StatCard label="Promo Available" value={promoLots.length}       sub="with active discount" color="#e05c5c" />
+          <StatCard label="Avg Savings"     value={fmtK(avgSavings)}       sub="off retail (promo lots)" color="#3cba6e" />
+          <StatCard label={`Lowest/mo @ ${activeRateObj.label.replace(" (live)","").replace(" (custom)","")}`}
+                    value={sorted.length?fmt(lowestTotal):"—"}              sub="P&I+HOA+CDD+F&B" color={activeRateObj.color} />
+          <StatCard label="Ready Now"       value={sorted.filter(l=>l.completion==="READY NOW!").length} sub="immediate" color="#3cba6e" />
+          <StatCard label="With Pool"       value={sorted.filter(l=>l.hasPool).length} sub="lots w/ pool" color="#59c8f0" />
+          {currentRate&&<StatCard label="Live 30yr Rate" value={`${(currentRate*100).toFixed(2)}%`} sub={rateDate} color={CURRENT_COLOR}/>}
         </div>
       </div>
 
-      {/* TABLE */}
-      <div style={{maxWidth:1600,margin:"12px auto 0",padding:"0 20px 40px",overflowX:"auto"}}>
+      {/* ── TABLE ── */}
+      <div style={{maxWidth:1700,margin:"12px auto 0",padding:"0 20px 40px",overflowX:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
           <thead>
             <tr>
-              <th colSpan={5} style={{padding:"6px 11px",background:"#0e1a24",fontSize:9,fontWeight:700,color:"#2a4a5e",textTransform:"uppercase",letterSpacing:"0.1em",textAlign:"left",borderBottom:"1px solid #1a2e3e"}}>Property</th>
-              <th colSpan={4} style={{padding:"6px 11px",background:"#0e1a24",fontSize:9,fontWeight:700,color:"#2a4a5e",textTransform:"uppercase",letterSpacing:"0.1em",textAlign:"left",borderBottom:"1px solid #1a2e3e",borderLeft:"1px solid #1e3040"}}>Pricing</th>
-              <th colSpan={3} style={{padding:"6px 11px",background:"#0e1a24",fontSize:9,fontWeight:700,color:"#2a4a5e",textTransform:"uppercase",letterSpacing:"0.1em",textAlign:"left",borderBottom:"1px solid #1a2e3e",borderLeft:"1px solid #1e3040"}}>Monthly Fees</th>
-              <th colSpan={2} style={{padding:"6px 11px",background:"#1a0e0e",fontSize:9,fontWeight:700,color:RATE_COLORS[0],textTransform:"uppercase",letterSpacing:"0.1em",textAlign:"center",borderBottom:"1px solid #1a2e3e",borderLeft:"1px solid #1e3040"}}>@ 6.0%</th>
-              <th colSpan={2} style={{padding:"6px 11px",background:"#150f08",fontSize:9,fontWeight:700,color:RATE_COLORS[1],textTransform:"uppercase",letterSpacing:"0.1em",textAlign:"center",borderBottom:"1px solid #1a2e3e",borderLeft:"1px solid #1e3040"}}>@ 5.5%</th>
-              <th colSpan={2} style={{padding:"6px 11px",background:"#0a180c",fontSize:9,fontWeight:700,color:RATE_COLORS[2],textTransform:"uppercase",letterSpacing:"0.1em",textAlign:"center",borderBottom:"1px solid #1a2e3e",borderLeft:"1px solid #1e3040"}}>@ 5.0%</th>
+              <th colSpan={5}  style={{padding:"5px 11px",background:"#0e1a24",fontSize:9,fontWeight:700,color:"#2a4a5e",textTransform:"uppercase",letterSpacing:"0.1em",textAlign:"left",borderBottom:"1px solid #1a2e3e"}}>Property</th>
+              <th colSpan={4}  style={{padding:"5px 11px",background:"#0e1a24",fontSize:9,fontWeight:700,color:"#2a4a5e",textTransform:"uppercase",letterSpacing:"0.1em",textAlign:"left",borderBottom:"1px solid #1a2e3e",borderLeft:"1px solid #1e3040"}}>Pricing</th>
+              <th colSpan={3}  style={{padding:"5px 11px",background:"#0e1a24",fontSize:9,fontWeight:700,color:"#2a4a5e",textTransform:"uppercase",letterSpacing:"0.1em",textAlign:"left",borderBottom:"1px solid #1a2e3e",borderLeft:"1px solid #1e3040"}}>Monthly Fees</th>
+              {allRates.map(r=>(
+                <th key={r.key} colSpan={2} style={{
+                  padding:"5px 11px",fontSize:9,fontWeight:700,color:r.color,
+                  textTransform:"uppercase",letterSpacing:"0.1em",textAlign:"center",
+                  borderBottom:"1px solid #1a2e3e",borderLeft:"1px solid #1e3040",
+                  background: hlRate===r.key ? r.color+"22" : "#0e1a24",
+                  outline: hlRate===r.key ? `1px solid ${r.color}44` : "none"}}>
+                  {r.isCurrent&&"● "}{r.isCustom&&"✎ "}@ {r.label}
+                </th>
+              ))}
             </tr>
             <tr>
               <TH col="lot">Lot #</TH>
@@ -277,21 +406,21 @@ function App() {
               <th style={{padding:"8px 11px",fontSize:10,fontWeight:700,color:"#5a8aaa",textTransform:"uppercase",letterSpacing:"0.07em",borderBottom:"1px solid #1e3040",background:"#131f2b",whiteSpace:"nowrap"}}>Floor Plan</th>
               <TH col="completion">Timeline</TH>
               <th style={{padding:"8px 11px",fontSize:10,fontWeight:700,color:"#5a8aaa",textTransform:"uppercase",letterSpacing:"0.07em",borderBottom:"1px solid #1e3040",background:"#131f2b",whiteSpace:"nowrap",borderLeft:"1px solid #1e3040"}}>Type</th>
-              <TH col="retail" right>Retail</TH>
-              <TH col="promo"  right>Promo</TH>
+              <TH col="retail"  right>Retail</TH>
+              <TH col="promo"   right>Promo</TH>
               <TH col="savings" right>Savings</TH>
               <th style={{padding:"8px 11px",fontSize:10,fontWeight:700,color:"#5a8aaa",textTransform:"uppercase",letterSpacing:"0.07em",borderBottom:"1px solid #1e3040",background:"#131f2b",whiteSpace:"nowrap",textAlign:"right",borderLeft:"1px solid #1e3040"}}>HOA</th>
               <th style={{padding:"8px 11px",fontSize:10,fontWeight:700,color:"#5a8aaa",textTransform:"uppercase",letterSpacing:"0.07em",borderBottom:"1px solid #1e3040",background:"#131f2b",whiteSpace:"nowrap",textAlign:"right"}}>CDD</th>
               <th style={{padding:"8px 11px",fontSize:10,fontWeight:700,color:"#5a8aaa",textTransform:"uppercase",letterSpacing:"0.07em",borderBottom:"1px solid #1e3040",background:"#131f2b",whiteSpace:"nowrap",textAlign:"right"}}>F&amp;B</th>
-              {RATES.map((r,i)=>[
-                <th key={"pi"+i} style={{padding:"8px 11px",fontSize:10,fontWeight:700,color:RATE_COLORS[i],textTransform:"uppercase",letterSpacing:"0.07em",borderBottom:"1px solid #1e3040",background:"#131f2b",whiteSpace:"nowrap",textAlign:"right",borderLeft:"1px solid #1e3040",opacity:0.8}}>P&amp;I</th>,
-                <th key={"tot"+i} style={{padding:"8px 11px",fontSize:10,fontWeight:700,color:RATE_COLORS[i],textTransform:"uppercase",letterSpacing:"0.07em",borderBottom:"1px solid #1e3040",background:"#131f2b",whiteSpace:"nowrap",textAlign:"right"}}>Total/mo</th>
+              {allRates.map((r,ri)=>[
+                <th key={r.key+"pi"} style={{padding:"8px 11px",fontSize:10,fontWeight:700,color:r.color,textTransform:"uppercase",letterSpacing:"0.07em",borderBottom:"1px solid #1e3040",background:"#131f2b",whiteSpace:"nowrap",textAlign:"right",borderLeft:"1px solid #1e3040",opacity:0.75}}>P&amp;I</th>,
+                <th key={r.key+"tot"} style={{padding:"8px 11px",fontSize:10,fontWeight:700,color:r.color,textTransform:"uppercase",letterSpacing:"0.07em",borderBottom:"1px solid #1e3040",background: hlRate===r.key?r.color+"18":"#131f2b",whiteSpace:"nowrap",textAlign:"right"}}>Total/mo</th>
               ])}
             </tr>
           </thead>
           <tbody>
             {sorted.length===0&&(
-              <tr><td colSpan={18} style={{padding:"32px",textAlign:"center",color:"#3a5a70",fontSize:14}}>No lots match current filters</td></tr>
+              <tr><td colSpan={totalCols} style={{padding:"32px",textAlign:"center",color:"#3a5a70",fontSize:14}}>No lots match current filters</td></tr>
             )}
             {sorted.map((lot,i)=>{
               const eff    = lot.promo??lot.retail;
@@ -318,9 +447,7 @@ function App() {
                   <td style={{padding:"10px 11px",whiteSpace:"nowrap"}}>
                     <span style={{fontSize:11,fontWeight:700,color:cc(lot.completion),
                       background:isReady?"#0d2a1a":isSoon?"#2a2000":"transparent",
-                      padding:(isReady||isSoon)?"2px 7px":0,borderRadius:4}}>
-                      {lot.completion}
-                    </span>
+                      padding:(isReady||isSoon)?"2px 7px":0,borderRadius:4}}>{lot.completion}</span>
                   </td>
                   <td style={{padding:"10px 11px",borderLeft:"1px solid #1e3040",whiteSpace:"nowrap"}}>
                     <div style={{display:"flex",flexDirection:"column",gap:3}}>
@@ -345,17 +472,17 @@ function App() {
                     color:isGolf?"#5de07a":"#59c8f0",fontWeight:600,whiteSpace:"nowrap",fontSize:11}}>{fmt(hoa)}</td>
                   <td style={{padding:"10px 11px",textAlign:"right",color:"#d47820",fontWeight:500,whiteSpace:"nowrap",fontSize:11}}>{fmt(CDD_MO)}</td>
                   <td style={{padding:"10px 11px",textAlign:"right",color:"#9c70c0",fontWeight:500,whiteSpace:"nowrap",fontSize:11}}>{fmt(FB_MO)}</td>
-                  {RATES.map((rate,ri)=>{
-                    const pi    = pmt(eff,rate,downPct);
+                  {allRates.map((rObj)=>{
+                    const pi    = pmt(eff,rObj.rate,downPct);
                     const total = pi+fixed;
-                    const isHL  = rate===hlRate;
+                    const isHL  = rObj.key===hlRate;
                     return [
-                      <td key={"pi"+ri} style={{padding:"10px 11px",textAlign:"right",borderLeft:"1px solid #1e3040",
-                        color:RATE_COLORS[ri],fontWeight:600,whiteSpace:"nowrap",fontSize:11,opacity:isHL?1:0.45}}>{fmt(pi)}</td>,
-                      <td key={"tot"+ri} style={{padding:"10px 11px",textAlign:"right",whiteSpace:"nowrap",
-                        background:isHL?RATE_COLORS[ri]+"1a":"transparent",
-                        fontWeight:isHL?800:600,fontSize:isHL?13:11,
-                        color:isHL?"#f0ebe3":RATE_COLORS[ri],opacity:isHL?1:0.5}}>{fmt(total)}</td>
+                      <td key={rObj.key+"pi"} style={{padding:"10px 11px",textAlign:"right",borderLeft:"1px solid #1e3040",
+                        color:rObj.color,fontWeight:600,whiteSpace:"nowrap",fontSize:11,opacity:isHL?1:0.4}}>{fmt(pi)}</td>,
+                      <td key={rObj.key+"tot"} style={{padding:"10px 11px",textAlign:"right",whiteSpace:"nowrap",
+                        background:isHL?rObj.color+"1a":"transparent",
+                        fontWeight:isHL?800:500,fontSize:isHL?13:11,
+                        color:isHL?"#f0ebe3":rObj.color,opacity:isHL?1:0.45}}>{fmt(total)}</td>
                     ];
                   })}
                 </tr>
@@ -369,21 +496,19 @@ function App() {
           <div style={{background:"#0e1a24",border:"1px solid #1e3040",borderRadius:12,padding:"16px 18px"}}>
             <div style={{fontSize:10,fontWeight:800,color:"#2a4a5e",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:12}}>Recurring Fee Breakdown</div>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
-              <thead>
-                <tr>
-                  <th style={{textAlign:"left",padding:"4px 0",color:"#2a4a5e",fontSize:9,fontWeight:700}}>Fee</th>
-                  <th style={{textAlign:"right",padding:"4px 0",color:"#2a4a5e",fontSize:9,fontWeight:700}}>Annual</th>
-                  <th style={{textAlign:"right",padding:"4px 0",color:"#2a4a5e",fontSize:9,fontWeight:700}}>Monthly</th>
-                </tr>
-              </thead>
+              <thead><tr>
+                <th style={{textAlign:"left",padding:"4px 0",color:"#2a4a5e",fontSize:9,fontWeight:700}}>Fee</th>
+                <th style={{textAlign:"right",padding:"4px 0",color:"#2a4a5e",fontSize:9,fontWeight:700}}>Annual</th>
+                <th style={{textAlign:"right",padding:"4px 0",color:"#2a4a5e",fontSize:9,fontWeight:700}}>Monthly</th>
+              </tr></thead>
               <tbody>
                 {[
-                  ["HOA Base Assessment",        "$3,946.63","$329",  false],
-                  ["Golf Membership Assessment", "$3,277.30","$273",  true ],
-                  ["Landscape Maint. (52' lot)", "$1,680.42","$140",  false],
-                  ["CDD Debt & O&M (52' lot)",   "$1,958.88","$163",  false],
-                  ["Min. Food & Beverage",       "$1,000.00","$83",   false],
-                  ["Golf Cart Fee",              "$29/round","—",     true ],
+                  ["HOA Base Assessment",        "$3,946.63","$329", false],
+                  ["Golf Membership Assessment", "$3,277.30","$273", true ],
+                  ["Landscape Maint. (52' lot)", "$1,680.42","$140", false],
+                  ["CDD Debt & O&M (52' lot)",   "$1,958.88","$163", false],
+                  ["Min. Food & Beverage",       "$1,000.00","$83",  false],
+                  ["Golf Cart Fee",              "$29/round","—",    true ],
                 ].map(([label,ann,mo,golf])=>(
                   <tr key={label}>
                     <td style={{padding:"5px 0",color:golf?"#5de07a":"#6a8898",fontSize:11}}>
@@ -401,12 +526,12 @@ function App() {
             <table style={{width:"100%",borderCollapse:"collapse"}}>
               <tbody>
                 {[
-                  ["Community Contribution",           "$3,000","Seller"           ],
-                  ["Builder Fee",                      "$3,000","Seller"           ],
-                  ["Initiation Fee",                   "$2,500","Seller/Affiliated"],
-                  ["Irrigation Hook-Up",               "$750",  "Seller"           ],
-                  ["Administration Fee",               "$150",  "Mgmt Co."         ],
-                  ["Estoppel Fee (outside lender)",    "$250",  "Mgmt Co."         ],
+                  ["Community Contribution",        "$3,000","Seller"           ],
+                  ["Builder Fee",                   "$3,000","Seller"           ],
+                  ["Initiation Fee",                "$2,500","Seller/Affiliated"],
+                  ["Irrigation Hook-Up",            "$750",  "Seller"           ],
+                  ["Administration Fee",            "$150",  "Mgmt Co."         ],
+                  ["Estoppel Fee (outside lender)", "$250",  "Mgmt Co."         ],
                 ].map(([label,amt,payee])=>(
                   <tr key={label}>
                     <td style={{padding:"5px 0",color:"#6a8898",fontSize:11}}>{label}</td>
