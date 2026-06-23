@@ -55,10 +55,25 @@ const RAW_LOTS = [
   { lot:"8039",  model:"Lazio",   elevType:"Med A",     extColor:"15A", floorPlan:"Overture 4.0",   address:"3118 Vicenza Ct",    retail:869159,  promo:null,    completion:"Aug/Sept",   lotType:"Resort", hasPool:false },
 ];
 
-const GOLF_HOA_MO   = 735;
-const RESORT_HOA_MO = 469;
-const CDD_MO        = 163;
-const FB_MO         = 83;
+// ─── FEES (from Taylor Morrison fee sheet, current as of Nov 2025, 2026 amounts) ──
+// All lots:
+const FEE_BASE_MO       = Math.round(3946.63  / 12); // $329 — Association Base Assessment
+const FEE_LANDSCAPE_MO  = Math.round(1680.42  / 12); // $140 — Landscape Maint & Irrigation (52' lot; 45' not listed, using 52' as proxy)
+const FEE_GOLF_MO       = Math.round(3277.30  / 12); // $273 — Golf Membership Assessment (Golf lots only)
+const FEE_CDD_MO        = Math.round(1958.88  / 12); // $163 — CDD Debt & O&M (52' lot proxy for 45' too)
+const FEE_FB_MO         = Math.round(1000.00  / 12); // $83  — Minimum Food & Beverage
+
+// Total recurring monthly by lot type
+const GOLF_FEES_MO   = FEE_BASE_MO + FEE_LANDSCAPE_MO + FEE_GOLF_MO + FEE_CDD_MO + FEE_FB_MO; // $988
+const RESORT_FEES_MO = FEE_BASE_MO + FEE_LANDSCAPE_MO +                FEE_CDD_MO + FEE_FB_MO; // $715
+
+// Legacy aliases used throughout (now fee-sheet-accurate, not sales-sheet estimates)
+const GOLF_HOA_MO   = GOLF_FEES_MO;    // replaces old $735 — was missing golf membership + landscape
+const RESORT_HOA_MO = RESORT_FEES_MO;  // replaces old $469 — was missing landscape
+
+// Keep these as named items for the detail panel fee breakdown
+const CDD_MO = FEE_CDD_MO;
+const FB_MO  = FEE_FB_MO;
 const FIXED_RATES   = [0.06, 0.055, 0.05];
 const FIXED_LABELS  = ["6.0%", "5.5%", "5.0%"];
 const FIXED_COLORS  = ["#e05c5c", "#d4893a", "#3cba6e"];
@@ -93,9 +108,8 @@ function StatCard({label,value,sub,color}) {
 // ─── EXPANDED ROW DETAIL ─────────────────────────────────────────────────────
 function ExpandedRow({lot, allRates, downPct, colCount}) {
   const isGolf = lot.lotType==="Golf";
-  const hoa    = isGolf?GOLF_HOA_MO:RESORT_HOA_MO;
+  const fixed  = isGolf?GOLF_HOA_MO:RESORT_HOA_MO; // now includes ALL recurring fees
   const eff    = lot.promo??lot.retail;
-  const fixed  = hoa+CDD_MO+FB_MO;
   const sav    = lot.promo?lot.retail-lot.promo:null;
 
   return (
@@ -148,14 +162,18 @@ function ExpandedRow({lot, allRates, downPct, colCount}) {
             <div style={{background:"#0a1820",border:"1px solid #1e3040",borderRadius:10,padding:"14px 18px",minWidth:200}}>
               <div style={{fontSize:10,color:"#3a5a70",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}}>Fixed Monthly Costs</div>
               <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:"4px 12px",alignItems:"center"}}>
-                <span style={{fontSize:11,color:"#4a6a80"}}>HOA</span>
-                <span style={{fontSize:13,fontWeight:700,color:isGolf?"#5de07a":"#59c8f0"}}>{fmt(hoa)}</span>
-                <span style={{fontSize:11,color:"#4a6a80"}}>CDD</span>
-                <span style={{fontSize:13,fontWeight:700,color:"#d47820"}}>{fmt(CDD_MO)}</span>
-                <span style={{fontSize:11,color:"#4a6a80"}}>Min F&amp;B</span>
-                <span style={{fontSize:13,fontWeight:700,color:"#9c70c0"}}>{fmt(FB_MO)}</span>
-                <span style={{fontSize:11,color:"#3a5a70",borderTop:"1px solid #1e3040",paddingTop:4}}>Subtotal</span>
-                <span style={{fontSize:14,fontWeight:800,color:"#c0c8d0",borderTop:"1px solid #1e3040",paddingTop:4}}>{fmt(fixed)}</span>
+                <span style={{fontSize:10,color:"#4a6a80"}}>Base HOA</span>
+                <span style={{fontSize:12,fontWeight:600,color:"#8aa8c0"}}>{fmt(FEE_BASE_MO)}</span>
+                <span style={{fontSize:10,color:"#4a6a80"}}>Landscape</span>
+                <span style={{fontSize:12,fontWeight:600,color:"#8aa8c0"}}>{fmt(FEE_LANDSCAPE_MO)}</span>
+                {isGolf&&<><span style={{fontSize:10,color:"#5de07a"}}>⛳ Golf Membership</span>
+                <span style={{fontSize:12,fontWeight:600,color:"#5de07a"}}>{fmt(FEE_GOLF_MO)}</span></>}
+                <span style={{fontSize:10,color:"#4a6a80"}}>CDD</span>
+                <span style={{fontSize:12,fontWeight:600,color:"#d47820"}}>{fmt(FEE_CDD_MO)}</span>
+                <span style={{fontSize:10,color:"#4a6a80"}}>Min F&amp;B</span>
+                <span style={{fontSize:12,fontWeight:600,color:"#9c70c0"}}>{fmt(FEE_FB_MO)}</span>
+                <span style={{fontSize:11,color:"#c0c8d0",fontWeight:700,borderTop:"1px solid #1e3040",paddingTop:5,marginTop:2}}>Total Fixed</span>
+                <span style={{fontSize:15,fontWeight:800,color:isGolf?"#5de07a":"#59c8f0",borderTop:"1px solid #1e3040",paddingTop:5,marginTop:2}}>{fmt(fixed)}/mo</span>
               </div>
             </div>
           </div>
@@ -344,8 +362,8 @@ function App() {
       case "promo":      av=effA;     bv=effB;     break;
       case "savings":    av=a.promo?a.retail-a.promo:0; bv=b.promo?b.retail-b.promo:0; break;
       case "total":
-        av=pmt(effA,ar,downPct)+(a.lotType==="Golf"?GOLF_HOA_MO:RESORT_HOA_MO)+CDD_MO+FB_MO;
-        bv=pmt(effB,ar,downPct)+(b.lotType==="Golf"?GOLF_HOA_MO:RESORT_HOA_MO)+CDD_MO+FB_MO; break;
+        av=pmt(effA,ar,downPct)+(a.lotType==="Golf"?GOLF_HOA_MO:RESORT_HOA_MO);
+        bv=pmt(effB,ar,downPct)+(b.lotType==="Golf"?GOLF_HOA_MO:RESORT_HOA_MO); break;
       case "completion": av=COMPLETION_ORDER[a.completion]??99; bv=COMPLETION_ORDER[b.completion]??99; break;
       default: av=0; bv=0;
     }
@@ -363,7 +381,7 @@ function App() {
   const avgSavings = promoLots.length?promoLots.reduce((s,l)=>s+(l.retail-l.promo),0)/promoLots.length:0;
   const lowestTotal= sorted.length?Math.min(...sorted.map(l=>{
     const eff=l.promo??l.retail;
-    return pmt(eff,activeRateObj.rate,downPct)+(l.lotType==="Golf"?GOLF_HOA_MO:RESORT_HOA_MO)+CDD_MO+FB_MO;
+    return pmt(eff,activeRateObj.rate,downPct)+(l.lotType==="Golf"?GOLF_HOA_MO:RESORT_HOA_MO);
   })):0;
 
   const models     = ["All",...Array.from(new Set(RAW_LOTS.map(l=>l.model))).sort()];
@@ -406,7 +424,7 @@ function App() {
           </div>
 
           <p style={{margin:"0 0 12px",color:"#3a6070",fontSize:11}}>
-            Total monthly cost · P&amp;I + HOA + CDD + min. F&amp;B · taxes &amp; insurance not included · Click any row for detail
+            Total monthly cost · P&amp;I + all recurring fees (base HOA + landscape + golf membership + CDD + min. F&amp;B) · taxes &amp; insurance not included · Click any row for detail
           </p>
 
           {/* FILTER ROW 1 */}
@@ -571,8 +589,7 @@ function App() {
             {sorted.map((lot,i)=>{
               const eff    = lot.promo??lot.retail;
               const isGolf = lot.lotType==="Golf";
-              const hoa    = isGolf?GOLF_HOA_MO:RESORT_HOA_MO;
-              const fixed  = hoa+CDD_MO+FB_MO;
+              const fixed  = isGolf?GOLF_HOA_MO:RESORT_HOA_MO; // all-in recurring fees
               const sav    = lot.promo?lot.retail-lot.promo:null;
               const savPct = lot.promo?((lot.retail-lot.promo)/lot.retail*100).toFixed(1):null;
               const isReady= lot.completion==="READY NOW!";
@@ -623,9 +640,12 @@ function App() {
                     </div>:<span style={{color:"#1e3040"}}>—</span>}
                   </td>
                   <td style={{padding:"10px 11px",textAlign:"right",borderLeft:"1px solid #1e3040",
-                    color:isGolf?"#5de07a":"#59c8f0",fontWeight:600,whiteSpace:"nowrap",fontSize:11}}>{fmt(hoa)}</td>
-                  <td style={{padding:"10px 11px",textAlign:"right",color:"#d47820",fontWeight:500,whiteSpace:"nowrap",fontSize:11}}>{fmt(CDD_MO)}</td>
-                  <td style={{padding:"10px 11px",textAlign:"right",color:"#9c70c0",fontWeight:500,whiteSpace:"nowrap",fontSize:11}}>{fmt(FB_MO)}</td>
+                    color:isGolf?"#5de07a":"#59c8f0",fontWeight:700,whiteSpace:"nowrap",fontSize:11,
+                    title:isGolf?`Base $${FEE_BASE_MO} + Landscape $${FEE_LANDSCAPE_MO} + Golf $${FEE_GOLF_MO}`:`Base $${FEE_BASE_MO} + Landscape $${FEE_LANDSCAPE_MO}`}}>
+                    {fmt(FEE_BASE_MO+FEE_LANDSCAPE_MO+(isGolf?FEE_GOLF_MO:0))}
+                  </td>
+                  <td style={{padding:"10px 11px",textAlign:"right",color:"#d47820",fontWeight:500,whiteSpace:"nowrap",fontSize:11}}>{fmt(FEE_CDD_MO)}</td>
+                  <td style={{padding:"10px 11px",textAlign:"right",color:"#9c70c0",fontWeight:500,whiteSpace:"nowrap",fontSize:11}}>{fmt(FEE_FB_MO)}</td>
                   {allRates.map(rObj=>{
                     const pi    = pmt(eff,rObj.rate,downPct);
                     const total = pi+fixed;
@@ -649,7 +669,7 @@ function App() {
         {/* FOOTER */}
         <div style={{marginTop:24,display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
           <div style={{background:"#0e1a24",border:"1px solid #1e3040",borderRadius:12,padding:"16px 18px"}}>
-            <div style={{fontSize:10,fontWeight:800,color:"#2a4a5e",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:12}}>Recurring Fee Breakdown</div>
+            <div style={{fontSize:10,fontWeight:800,color:"#2a4a5e",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:12}}>Recurring Fee Breakdown (from fee sheet)</div>
             <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
               <thead><tr>
                 <th style={{textAlign:"left",padding:"4px 0",color:"#2a4a5e",fontSize:9,fontWeight:700}}>Fee</th>
@@ -658,21 +678,34 @@ function App() {
               </tr></thead>
               <tbody>
                 {[
-                  ["HOA Base Assessment",        "$3,946.63","$329", false],
-                  ["Golf Membership Assessment", "$3,277.30","$273", true ],
-                  ["Landscape Maint. (52' lot)", "$1,680.42","$140", false],
-                  ["CDD Debt & O&M (52' lot)",   "$1,958.88","$163", false],
-                  ["Min. Food & Beverage",       "$1,000.00","$83",  false],
-                  ["Golf Cart Fee",              "$29/round","—",    true ],
+                  ["Association Base Assessment",         "$3,946.63","$329",  false, false],
+                  ["Landscape Maint. & Irrigation (52')", "$1,680.42","$140",  false, false],
+                  ["⛳ Golf Membership Assessment",        "$3,277.30","$273",  true,  false],
+                  ["CDD Debt & O&M (52' lot)",            "$1,958.88","$163",  false, false],
+                  ["Min. Food & Beverage",                "$1,000.00","$83",   false, false],
+                  ["Golf Cart Fee",                       "$29/round","—",     true,  false],
                 ].map(([label,ann,mo,golf])=>(
                   <tr key={label}>
-                    <td style={{padding:"5px 0",color:golf?"#5de07a":"#6a8898",fontSize:11}}>
-                      {golf&&<span style={{marginRight:4,fontSize:9}}>⛳</span>}{label}
-                    </td>
+                    <td style={{padding:"5px 0",color:golf?"#5de07a":"#6a8898",fontSize:11}}>{label}</td>
                     <td style={{padding:"5px 0",textAlign:"right",color:"#3a5a70",fontSize:11}}>{ann}</td>
                     <td style={{padding:"5px 0",textAlign:"right",color:"#c0c8d0",fontWeight:700,fontSize:12}}>{mo}</td>
                   </tr>
                 ))}
+                <tr style={{borderTop:"2px solid #1e3040"}}>
+                  <td style={{padding:"7px 0 3px",color:"#5de07a",fontWeight:800,fontSize:12}}>⛳ Golf Total (45' lot)</td>
+                  <td style={{padding:"7px 0 3px",textAlign:"right",color:"#5de07a",fontWeight:700,fontSize:11}}>$11,863/yr</td>
+                  <td style={{padding:"7px 0 3px",textAlign:"right",color:"#5de07a",fontWeight:800,fontSize:14}}>${GOLF_FEES_MO}/mo</td>
+                </tr>
+                <tr>
+                  <td style={{padding:"3px 0 5px",color:"#59c8f0",fontWeight:800,fontSize:12}}>🏖 Resort Total (52' lot)</td>
+                  <td style={{padding:"3px 0 5px",textAlign:"right",color:"#59c8f0",fontWeight:700,fontSize:11}}>$8,586/yr</td>
+                  <td style={{padding:"3px 0 5px",textAlign:"right",color:"#59c8f0",fontWeight:800,fontSize:14}}>${RESORT_FEES_MO}/mo</td>
+                </tr>
+                <tr style={{borderTop:"1px solid #1e3040"}}>
+                  <td colSpan={3} style={{padding:"6px 0 2px",color:"#3a5060",fontSize:10,fontStyle:"italic"}}>
+                    Previously shown as $735/mo (Golf) and $469/mo (Resort) from sales sheet — those figures excluded landscape maint. and golf membership. Above reflects actual 2026 fee sheet amounts.
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
